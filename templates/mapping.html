@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Choose Matching Column{% endblock %}
+{% block content %}
+<form action="{{ url_for('merge') }}" method="post" class="card">
+  <h2>Step 2 &mdash; Choose the matching column</h2>
+  <p class="hint">Pick the column in each file that identifies the same person/company (usually email). Rows with matching values will be merged into one record.</p>
+
+  <div class="grid-2">
+    <fieldset>
+      <legend>{{ crm_a_name }}</legend>
+      <label>Match on
+        <select name="key_a" required>
+          {% for c in columns_a %}
+            <option value="{{ c }}" {% if c == guess_a %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="table-wrap">
+        <table class="preview">
+          <thead><tr>{% for c in columns_a %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in preview_a %}
+              <tr>{% for c in columns_a %}<td>{{ row.get(c, "") }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{ crm_b_name }}</legend>
+      <label>Match on
+        <select name="key_b" required>
+          {% for c in columns_b %}
+            <option value="{{ c }}" {% if c == guess_b %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="table-wrap">
+        <table class="preview">
+          <thead><tr>{% for c in columns_b %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in preview_b %}
+              <tr>{% for c in columns_b %}<td>{{ row.get(c, "") }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+  </div>
+
+  <button type="submit">Merge reports</button>
+</form>
+{% endblock %}

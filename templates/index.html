@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Upload Reports{% endblock %}
+{% block content %}
+<form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="card">
+  <h2>Step 1 &mdash; Upload both reports</h2>
+  <p class="hint">CSV or Excel (.xlsx/.xls) exports from each CRM.</p>
+
+  <div class="grid-2">
+    <fieldset>
+      <legend>First CRM</legend>
+      <label>Name (optional)
+        <input type="text" name="crm_a_name" placeholder="e.g. Salesforce">
+      </label>
+      <label>Report file
+        <input type="file" name="crm_a_file" accept=".csv,.xlsx,.xls" required>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Second CRM</legend>
+      <label>Name (optional)
+        <input type="text" name="crm_b_name" placeholder="e.g. HubSpot">
+      </label>
+      <label>Report file
+        <input type="file" name="crm_b_file" accept=".csv,.xlsx,.xls" required>
+      </label>
+    </fieldset>
+  </div>
+
+  <button type="submit">Continue</button>
+</form>
+{% endblock %}

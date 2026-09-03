@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Merged Results{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Step 3 &mdash; Merged data</h2>
+
+  <div class="stats">
+    <div class="stat"><span class="num">{{ total }}</span><span class="label">Total records</span></div>
+    <div class="stat"><span class="num">{{ matched_both }}</span><span class="label">Matched in both</span></div>
+    <div class="stat"><span class="num">{{ only_a_count }}</span><span class="label">Only in {{ crm_a_name }}</span></div>
+    <div class="stat"><span class="num">{{ only_b_count }}</span><span class="label">Only in {{ crm_b_name }}</span></div>
+    <div class="stat warn"><span class="num">{{ with_conflicts }}</span><span class="label">Rows with field conflicts</span></div>
+  </div>
+
+  <a class="button" href="{{ url_for('download', sid=sid) }}">Download full merged CSV</a>
+
+  {% if truncated %}
+    <p class="hint">Showing first {{ preview_shown }} of {{ total }} rows below. Download the CSV for the full dataset.</p>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table class="preview results">
+      <thead>
+        <tr>
+          {% for c in columns %}<th>{{ c }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          {% set conflict_list = (row.get('Conflicts') or "").split(', ') %}
+          <tr class="{{ 'has-conflict' if row.get('Conflicts') else '' }}">
+            {% for c in columns %}
+              <td class="{{ 'conflict-cell' if col_to_base.get(c) in conflict_list else '' }}">{{ row.get(c, "") }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <a href="{{ url_for('index') }}">&larr; Start a new merge</a>
+</div>
+{% endblock %}
