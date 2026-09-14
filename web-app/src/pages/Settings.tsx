@@ -1,13 +1,24 @@
-import { Plug, Users, Bell, Shield } from "lucide-react";
+import { Plug, Users, Bell, Shield, KeyRound, Check, Minus } from "lucide-react";
 import { Card, PageHeader, Badge, Button } from "../components/ui";
-import { dataSources } from "../data/mockData";
+import { useRole, roleProfiles } from "../context/RoleContext";
+import { dataSources, accessLevelMatrix } from "../data/mockData";
 
 const team = [
-  { name: "Eamonn Patterson", email: "eamonnpatterson1@gmail.com", role: "Administrator" },
-  { name: "M. Alvarez", email: "m.alvarez@company.com", role: "Sales Rep" },
-  { name: "D. Chen", email: "d.chen@company.com", role: "Sales Rep" },
-  { name: "K. Sanders", email: "k.sanders@company.com", role: "Order Support" },
+  { name: "John Doe", email: "john.doe@add-impact.com", role: "Super User" },
+  { name: "Jane Doe", email: "jane.doe@add-impact.com", role: "Management" },
+  { name: "M. Alvarez", email: "m.alvarez@add-impact.com", role: "Account Manager" },
+  { name: "D. Chen", email: "d.chen@add-impact.com", role: "Account Manager" },
+  { name: "R. Okafor", email: "r.okafor@add-impact.com", role: "Account Manager" },
+  { name: "K. Sanders", email: "k.sanders@add-impact.com", role: "CSR" },
+  { name: "T. Reyes", email: "t.reyes@add-impact.com", role: "CSR" },
 ];
+
+const teamRoleTone: Record<string, "violet" | "sky" | "emerald" | "slate"> = {
+  "Super User": "violet",
+  Management: "sky",
+  "Account Manager": "emerald",
+  CSR: "slate",
+};
 
 function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
   return (
@@ -24,9 +35,54 @@ function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
 }
 
 export default function Settings() {
+  const { profile } = useRole();
+  const isSuperUser = profile.role === "super_user";
+
   return (
     <div className="space-y-6">
       <PageHeader title="Settings" description="Integrations, team access, and notification preferences." />
+
+      {isSuperUser && (
+        <Card className="p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <KeyRound size={16} className="text-slate-500" />
+            <h3 className="text-sm font-semibold text-slate-800">System Access Levels</h3>
+          </div>
+          <p className="mb-4 text-sm text-slate-500">
+            Four-tiered role structure. Super User configures this matrix; other roles see it read-only from Settings.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="py-2 pr-4 font-medium">Capability</th>
+                  {roleProfiles.map((p) => (
+                    <th key={p.role} className="py-2 px-3 text-center font-medium">
+                      {p.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {accessLevelMatrix.map((row) => (
+                  <tr key={row.capability}>
+                    <td className="py-2.5 pr-4 text-slate-700">{row.capability}</td>
+                    {(["account_manager", "csr", "management", "super_user"] as const).map((role) => (
+                      <td key={role} className="py-2.5 px-3 text-center">
+                        {row[role] ? (
+                          <Check size={15} className="mx-auto text-emerald-600" />
+                        ) : (
+                          <Minus size={15} className="mx-auto text-slate-300" />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
@@ -72,7 +128,7 @@ export default function Settings() {
                   <td className="py-2.5 pr-4 font-medium text-slate-800">{member.name}</td>
                   <td className="py-2.5 pr-4 text-slate-500">{member.email}</td>
                   <td className="py-2.5 pr-4">
-                    <Badge tone={member.role === "Administrator" ? "violet" : "slate"}>{member.role}</Badge>
+                    <Badge tone={teamRoleTone[member.role] ?? "slate"}>{member.role}</Badge>
                   </td>
                 </tr>
               ))}

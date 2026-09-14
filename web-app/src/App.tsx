@@ -7,6 +7,8 @@ import Prospects from "./pages/Prospects";
 import ReferralPartners from "./pages/ReferralPartners";
 import SalesPipeline from "./pages/SalesPipeline";
 import OrderExcellence from "./pages/OrderExcellence";
+import ProjectTracker from "./pages/ProjectTracker";
+import AuditTrail from "./pages/AuditTrail";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="/referral-partners" element={<ReferralPartners />} />
         <Route path="/pipeline" element={<SalesPipeline />} />
         <Route path="/order-excellence" element={<OrderExcellence />} />
+        <Route path="/project-tracker" element={<ProjectTracker />} />
+        <Route path="/audit-trail" element={<AuditTrail />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

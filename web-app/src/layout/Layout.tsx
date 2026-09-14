@@ -4,12 +4,14 @@ import Topbar from "./Topbar";
 
 const titleByPath: Record<string, string> = {
   "/": "Dashboard",
-  "/sales": "Sales Reports",
+  "/sales": "Sales Dashboard",
   "/customers": "Customers",
   "/prospects": "Prospects",
   "/referral-partners": "Referral Partners",
   "/pipeline": "Sales Pipeline",
   "/order-excellence": "Order Excellence",
+  "/project-tracker": "Project Tracker",
+  "/audit-trail": "Audit Trail",
   "/reports": "Reports",
   "/settings": "Settings",
 };

@@ -11,17 +11,31 @@ import {
 } from "recharts";
 import { DollarSign, TrendingUp, AlertTriangle, Users } from "lucide-react";
 import { Card, PageHeader, StatCard, Badge, currency } from "../components/ui";
+import { useRole } from "../context/RoleContext";
 import {
   revenueTrend,
   salesByRep,
   pipelineDeals,
   pipelineStages,
   orderIssues,
+  customers,
   dataSources,
 } from "../data/mockData";
 
 export default function Dashboard() {
-  const openPipelineValue = pipelineDeals
+  const { profile, canViewAllAccounts } = useRole();
+
+  const scopedPipelineDeals = canViewAllAccounts
+    ? pipelineDeals
+    : pipelineDeals.filter((d) => d.owner === profile.ownerName);
+  const scopedSalesByRep = canViewAllAccounts
+    ? salesByRep
+    : salesByRep.filter((r) => r.rep === profile.ownerName);
+  const scopedCustomers = canViewAllAccounts
+    ? customers
+    : customers.filter((c) => c.accountManager === profile.ownerName);
+
+  const openPipelineValue = scopedPipelineDeals
     .filter((d) => d.stage !== "closed_won")
     .reduce((sum, d) => sum + d.value, 0);
   const openIssues = orderIssues.filter((i) => i.status !== "resolved").length;
@@ -30,7 +44,11 @@ export default function Dashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        description="Snapshot across Sales Reporting, CPR, and Order Excellence."
+        description={
+          canViewAllAccounts
+            ? "Company-wide snapshot across Sales Reporting, CPR, and Order Excellence."
+            : `Your snapshot, ${profile.name} — scoped to your own accounts and pipeline.`
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -56,13 +74,18 @@ export default function Dashboard() {
           icon={<AlertTriangle size={18} />}
         />
         <StatCard
-          label="Active Customers"
-          value="312"
-          delta="+6 this month"
+          label={canViewAllAccounts ? "Active Accounts" : "Your Accounts"}
+          value={canViewAllAccounts ? "312" : String(scopedCustomers.length)}
+          delta={canViewAllAccounts ? "+6 this month" : `${scopedCustomers.filter((c) => c.priority === "A").length} priority A`}
           deltaTone="positive"
           icon={<Users size={18} />}
         />
       </div>
+      {!canViewAllAccounts && (
+        <Card className="mt-4 border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          Account Managers see only their own accounts, pipeline, and sales performance — company-wide figures and budget editing are restricted to Management and Super User roles.
+        </Card>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
@@ -117,9 +140,11 @@ export default function Dashboard() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Revenue by Sales Rep</h3>
+          <h3 className="mb-4 text-sm font-semibold text-slate-700">
+            {canViewAllAccounts ? "Revenue by Sales Rep" : "Your Revenue"}
+          </h3>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={salesByRep} layout="vertical" margin={{ left: 20 }}>
+            <BarChart data={scopedSalesByRep} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
               <XAxis type="number" tickFormatter={(v) => `$${v / 1000}k`} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="rep" tick={{ fontSize: 12, fill: "#334155" }} axisLine={false} tickLine={false} width={90} />
@@ -133,7 +158,7 @@ export default function Dashboard() {
           <h3 className="mb-4 text-sm font-semibold text-slate-700">Pipeline by Stage</h3>
           <div className="space-y-3">
             {pipelineStages.map((stage) => {
-              const deals = pipelineDeals.filter((d) => d.stage === stage.key);
+              const deals = scopedPipelineDeals.filter((d) => d.stage === stage.key);
               const value = deals.reduce((sum, d) => sum + d.value, 0);
               return (
                 <div key={stage.key}>

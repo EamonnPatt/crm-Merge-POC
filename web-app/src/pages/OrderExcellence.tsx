@@ -1,5 +1,6 @@
-import { AlertTriangle, Clock, CheckCircle2, Plus } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, Plus, ExternalLink } from "lucide-react";
 import { Card, PageHeader, Badge, Button, StatCard } from "../components/ui";
+import { useRole } from "../context/RoleContext";
 import { orderIssues, type OrderIssue } from "../data/mockData";
 
 const severityTone: Record<OrderIssue["severity"], "rose" | "amber" | "slate"> = {
@@ -21,6 +22,7 @@ const statusLabel: Record<OrderIssue["status"], string> = {
 };
 
 export default function OrderExcellence() {
+  const { canEditOrderExcellence } = useRole();
   const open = orderIssues.filter((i) => i.status === "open").length;
   const inProgress = orderIssues.filter((i) => i.status === "in_progress").length;
   const resolved = orderIssues.filter((i) => i.status === "resolved").length;
@@ -29,11 +31,22 @@ export default function OrderExcellence() {
     <div>
       <PageHeader
         title="Order Excellence"
-        description="Tracking order-related issues across both source systems."
+        description={
+          canEditOrderExcellence
+            ? "Updated nightly by CSRs to flag anything that could push an order past its in-hand date."
+            : "Tracking order-related issues across both source systems. Updated daily by CSRs."
+        }
         actions={
-          <Button variant="primary">
-            <Plus size={15} /> Log Issue
-          </Button>
+          <>
+            <Button variant="secondary">
+              <ExternalLink size={15} /> Open Linked Spreadsheet
+            </Button>
+            {canEditOrderExcellence && (
+              <Button variant="primary">
+                <Plus size={15} /> Log Issue
+              </Button>
+            )}
+          </>
         }
       />
 
