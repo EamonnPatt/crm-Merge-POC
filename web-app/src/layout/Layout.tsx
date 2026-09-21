@@ -5,7 +5,8 @@ import Topbar from "./Topbar";
 const titleByPath: Record<string, string> = {
   "/": "Dashboard",
   "/sales": "Sales Dashboard",
-  "/customers": "Customers",
+  "/budgets": "Budgets",
+  "/customers": "Accounts",
   "/prospects": "Prospects",
   "/referral-partners": "Referral Partners",
   "/pipeline": "Sales Pipeline",

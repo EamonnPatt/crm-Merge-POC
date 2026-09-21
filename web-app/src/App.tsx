@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "./layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
+import Budgets from "./pages/Budgets";
 import Customers from "./pages/Customers";
 import Prospects from "./pages/Prospects";
 import ReferralPartners from "./pages/ReferralPartners";
@@ -18,6 +19,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="/budgets" element={<Budgets />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/prospects" element={<Prospects />} />
         <Route path="/referral-partners" element={<ReferralPartners />} />

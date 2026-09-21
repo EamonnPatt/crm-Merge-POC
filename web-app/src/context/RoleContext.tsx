@@ -1,8 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useDemoData } from "./DemoDataContext";
+import { initialsOf, roleLabel, type Role } from "../lib/roles";
 
-export type Role = "account_manager" | "csr" | "management" | "super_user";
+export type { Role } from "../lib/roles";
 
 export interface RoleProfile {
+  userId: string;
   role: Role;
   label: string;
   name: string;
@@ -11,37 +14,87 @@ export interface RoleProfile {
   ownerName?: string;
 }
 
-export const roleProfiles: RoleProfile[] = [
-  { role: "account_manager", label: "Account Manager", name: "M. Alvarez", initials: "MA", ownerName: "M. Alvarez" },
-  { role: "csr", label: "CSR / Order Support", name: "K. Sanders", initials: "KS" },
-  { role: "management", label: "Management", name: "Jane Doe", initials: "JD" },
-  { role: "super_user", label: "Super User / Admin", name: "John Doe", initials: "JD" },
-];
-
 interface RoleContextValue {
   profile: RoleProfile;
-  setRole: (role: Role) => void;
-  canViewAllAccounts: boolean;
+  setUser: (userId: string) => void;
+  /** Account Managers whose sales performance this user may see (company-wide for Management). */
+  visibleReps: string[];
+  canViewCompanyMetrics: boolean;
+  canViewSalesDashboard: boolean;
+  canShareDashboard: boolean;
+  canViewBudgets: boolean;
   canEditBudgets: boolean;
+  canCreateAccounts: boolean;
+  canManageUsers: boolean;
+  canViewCpr: boolean;
+  canViewReports: boolean;
   canViewProjectTracker: boolean;
   canViewAuditTrail: boolean;
   canEditOrderExcellence: boolean;
+  canConfigureSystem: boolean;
 }
+
+const DEFAULT_USER_ID = "U-02";
+const USER_KEY = "add-impact-demo-user";
 
 const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRoleState] = useState<Role>("management");
-  const profile = roleProfiles.find((p) => p.role === role) ?? roleProfiles[2];
+  const { team, shares } = useDemoData();
+  const [userId, setUserId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(USER_KEY) ?? DEFAULT_USER_ID;
+    } catch {
+      return DEFAULT_USER_ID;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(USER_KEY, userId);
+    } catch {
+      // Storage blocked: the chosen user just won't be remembered.
+    }
+  }, [userId]);
+
+  const member = team.find((m) => m.id === userId) ?? team.find((m) => m.id === DEFAULT_USER_ID) ?? team[0];
+  const role = member.role;
+  const profile: RoleProfile = {
+    userId: member.id,
+    role,
+    label: roleLabel[role],
+    name: member.name,
+    initials: initialsOf(member.name),
+    ownerName: role === "account_manager" ? member.name : undefined,
+  };
+
+  const isManagement = role === "management" || role === "super_user";
+  const accountManagers = team.filter((m) => m.role === "account_manager").map((m) => m.name);
+  const visibleReps = isManagement
+    ? accountManagers
+    : role === "account_manager"
+    ? [member.name]
+    : role === "assistant"
+    ? shares.filter((s) => s.assistant === member.name).map((s) => s.owner)
+    : [];
 
   const value: RoleContextValue = {
     profile,
-    setRole: setRoleState,
-    canViewAllAccounts: role === "management" || role === "super_user",
-    canEditBudgets: role === "management" || role === "super_user",
-    canViewProjectTracker: role === "management" || role === "super_user",
-    canViewAuditTrail: role === "management" || role === "super_user",
-    canEditOrderExcellence: role === "csr" || role === "super_user",
+    setUser: setUserId,
+    visibleReps,
+    canViewCompanyMetrics: isManagement,
+    canViewSalesDashboard: isManagement || role === "account_manager" || role === "assistant",
+    canShareDashboard: role === "account_manager",
+    canViewBudgets: isManagement || role === "account_manager",
+    canEditBudgets: isManagement,
+    canCreateAccounts: isManagement,
+    canManageUsers: isManagement,
+    canViewCpr: isManagement || role === "account_manager",
+    canViewReports: isManagement || role === "account_manager",
+    canViewProjectTracker: isManagement,
+    canViewAuditTrail: isManagement,
+    canEditOrderExcellence: role === "csr" || isManagement,
+    canConfigureSystem: role === "super_user",
   };
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

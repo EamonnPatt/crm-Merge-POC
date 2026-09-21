@@ -1,4 +1,9 @@
+import type { Role } from "../lib/roles";
+import { CURRENT_MONTH, currentMonthDays } from "../lib/calendar";
+
 export type Source = "ASI SmartBooks" | "Facilis Syncore";
+/** Accounts created directly in this app (by Management) rather than synced from a source system. */
+export type AccountSource = Source | "Created in app";
 
 export const dataSources: {
   name: Source;
@@ -10,40 +15,17 @@ export const dataSources: {
   {
     name: "ASI SmartBooks",
     status: "attention",
-    lastSync: "2026-09-03 06:00 AM",
+    lastSync: "2026-09-21 06:00 AM",
     recordsSynced: 4218,
     method: "Scheduled Excel export",
   },
   {
     name: "Facilis Syncore",
     status: "connected",
-    lastSync: "2026-09-03 09:15 AM",
+    lastSync: "2026-09-21 09:15 AM",
     recordsSynced: 9873,
     method: "Syncore API v2.0",
   },
-];
-
-export const revenueTrend = [
-  { month: "Oct", revenue: 182000, target: 175000 },
-  { month: "Nov", revenue: 194500, target: 180000 },
-  { month: "Dec", revenue: 221000, target: 200000 },
-  { month: "Jan", revenue: 176000, target: 190000 },
-  { month: "Feb", revenue: 203500, target: 195000 },
-  { month: "Mar", revenue: 238000, target: 210000 },
-  { month: "Apr", revenue: 215000, target: 215000 },
-  { month: "May", revenue: 247000, target: 220000 },
-  { month: "Jun", revenue: 261500, target: 225000 },
-  { month: "Jul", revenue: 249000, target: 230000 },
-  { month: "Aug", revenue: 272000, target: 235000 },
-  { month: "Sep", revenue: 158000, target: 240000 },
-];
-
-export const salesByRep = [
-  { rep: "M. Alvarez", revenue: 84200 },
-  { rep: "D. Chen", revenue: 71850 },
-  { rep: "R. Okafor", revenue: 66300 },
-  { rep: "S. Patel", revenue: 59900 },
-  { rep: "J. Whitfield", revenue: 47650 },
 ];
 
 export const pipelineStages = [
@@ -88,7 +70,7 @@ export interface Customer {
   phone: string;
   totalOrders: number;
   lifetimeValue: number;
-  source: Source;
+  source: AccountSource;
   since: string;
   accountManager: string;
   priority: AccountPriority;
@@ -98,7 +80,7 @@ export interface Customer {
   lyGrossProfit: number;
 }
 
-export const customers: Customer[] = [
+export const customerSeed: Customer[] = [
   { id: "C-2001", name: "Laura Kim", company: "Harbor Logistics", email: "l.kim@harborlogistics.com", phone: "(555) 201-3344", totalOrders: 46, lifetimeValue: 412000, source: "ASI SmartBooks", since: "2021-03-11", accountManager: "M. Alvarez", priority: "A", notes: "Key account — quarterly business review scheduled for Oct.", weeklyActivityLogged: true, monthlyActivityLogged: true, lyGrossProfit: 96400 },
   { id: "C-2002", name: "Trevor Boyd", company: "Meridian Freight", email: "trevor.boyd@meridianfreight.com", phone: "(555) 288-9021", totalOrders: 31, lifetimeValue: 298500, source: "Facilis Syncore", since: "2022-07-02", accountManager: "D. Chen", priority: "A", notes: "Renewal + expansion deal in negotiation.", weeklyActivityLogged: true, monthlyActivityLogged: true, lyGrossProfit: 71200 },
   { id: "C-2003", name: "Priya Nair", company: "Bluecrest Supply", email: "priya.nair@bluecrest.com", phone: "(555) 340-1187", totalOrders: 58, lifetimeValue: 521300, source: "ASI SmartBooks", since: "2019-11-19", accountManager: "R. Okafor", priority: "A", notes: "Longest-tenured account, stable monthly volume.", weeklyActivityLogged: false, monthlyActivityLogged: true, lyGrossProfit: 118500 },
@@ -174,55 +156,114 @@ export function marginPct(order: SalesOrder): number {
   return order.amount === 0 ? 0 : (grossProfit(order) / order.amount) * 100;
 }
 
-/** Sales Dashboard: budget vs. actual vs. LY performance, per Account Manager, per period type. */
-export type PeriodType = "daily" | "monthly" | "quarterly" | "annual";
+/**
+ * Users / team members. The demo "View as" switcher lists these, and Management can add more
+ * (including Assistant accounts) from Settings → Team Access.
+ */
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** Assistants only: the Account Managers this assistant supports. */
+  supports?: string[];
+  status: "active" | "invited";
+}
 
-export interface RepBudget {
+export const teamSeed: TeamMember[] = [
+  { id: "U-01", name: "John Doe", email: "john.doe@add-impact.com", role: "super_user", status: "active" },
+  { id: "U-02", name: "Jane Doe", email: "jane.doe@add-impact.com", role: "management", status: "active" },
+  { id: "U-03", name: "M. Alvarez", email: "m.alvarez@add-impact.com", role: "account_manager", status: "active" },
+  { id: "U-04", name: "D. Chen", email: "d.chen@add-impact.com", role: "account_manager", status: "active" },
+  { id: "U-05", name: "R. Okafor", email: "r.okafor@add-impact.com", role: "account_manager", status: "active" },
+  { id: "U-06", name: "S. Patel", email: "s.patel@add-impact.com", role: "account_manager", status: "active" },
+  { id: "U-07", name: "J. Whitfield", email: "j.whitfield@add-impact.com", role: "account_manager", status: "active" },
+  { id: "U-08", name: "L. Brooks", email: "l.brooks@add-impact.com", role: "assistant", supports: ["M. Alvarez", "D. Chen"], status: "active" },
+  { id: "U-09", name: "P. Nguyen", email: "p.nguyen@add-impact.com", role: "assistant", supports: ["R. Okafor", "S. Patel"], status: "active" },
+  { id: "U-10", name: "K. Sanders", email: "k.sanders@add-impact.com", role: "csr", status: "active" },
+  { id: "U-11", name: "T. Reyes", email: "t.reyes@add-impact.com", role: "csr", status: "active" },
+  { id: "U-12", name: "M. Duarte", email: "m.duarte@add-impact.com", role: "csr", status: "active" },
+];
+
+/** An Account Manager's Sales Dashboard shared (read-only) with one of their assistants. */
+export interface DashboardShare {
+  owner: string;
+  assistant: string;
+  sharedAt: string;
+}
+
+export const dashboardShareSeed: DashboardShare[] = [
+  { owner: "M. Alvarez", assistant: "L. Brooks", sharedAt: "2026-09-15" },
+  { owner: "R. Okafor", assistant: "P. Nguyen", sharedAt: "2026-09-10" },
+];
+
+/**
+ * Budgets: monthly GP$ targets per Account Manager per fiscal year. Management creates and edits
+ * these on the Budgets page; they drive every "vs Budget" and "Days ahead / behind" figure.
+ */
+export interface Budget {
+  id: string;
   rep: string;
-  businessDaysElapsed: number;
-  businessDaysInPeriod: number;
-  actualGP: number;
-  budgetGP: number;
-  lyGP: number;
+  fiscalYear: number;
+  /** Jan–Dec GP$ budget. */
+  monthly: number[];
+  updatedBy: string;
+  updatedAt: string;
 }
 
-export const repBudgetsByPeriod: Record<PeriodType, RepBudget[]> = {
-  daily: [
-    { rep: "M. Alvarez", businessDaysElapsed: 1, businessDaysInPeriod: 1, actualGP: 3120, budgetGP: 750, lyGP: 2400 },
-    { rep: "D. Chen", businessDaysElapsed: 1, businessDaysInPeriod: 1, actualGP: 980, budgetGP: 750, lyGP: 1100 },
-    { rep: "R. Okafor", businessDaysElapsed: 1, businessDaysInPeriod: 1, actualGP: 610, budgetGP: 700, lyGP: 590 },
-    { rep: "S. Patel", businessDaysElapsed: 1, businessDaysInPeriod: 1, actualGP: 540, budgetGP: 650, lyGP: 700 },
-    { rep: "J. Whitfield", businessDaysElapsed: 1, businessDaysInPeriod: 1, actualGP: 890, budgetGP: 600, lyGP: 520 },
-  ],
-  monthly: [
-    { rep: "M. Alvarez", businessDaysElapsed: 12, businessDaysInPeriod: 20, actualGP: 15400, budgetGP: 15000, lyGP: 13200 },
-    { rep: "D. Chen", businessDaysElapsed: 12, businessDaysInPeriod: 20, actualGP: 9420, budgetGP: 15000, lyGP: 12800 },
-    { rep: "R. Okafor", businessDaysElapsed: 12, businessDaysInPeriod: 20, actualGP: 8100, budgetGP: 14000, lyGP: 9700 },
-    { rep: "S. Patel", businessDaysElapsed: 12, businessDaysInPeriod: 20, actualGP: 6800, budgetGP: 13000, lyGP: 11400 },
-    { rep: "J. Whitfield", businessDaysElapsed: 12, businessDaysInPeriod: 20, actualGP: 7900, budgetGP: 12000, lyGP: 8200 },
-  ],
-  quarterly: [
-    { rep: "M. Alvarez", businessDaysElapsed: 44, businessDaysInPeriod: 64, actualGP: 48200, budgetGP: 45000, lyGP: 39600 },
-    { rep: "D. Chen", businessDaysElapsed: 44, businessDaysInPeriod: 64, actualGP: 31100, budgetGP: 45000, lyGP: 38400 },
-    { rep: "R. Okafor", businessDaysElapsed: 44, businessDaysInPeriod: 64, actualGP: 26700, budgetGP: 42000, lyGP: 29100 },
-    { rep: "S. Patel", businessDaysElapsed: 44, businessDaysInPeriod: 64, actualGP: 22300, budgetGP: 39000, lyGP: 34200 },
-    { rep: "J. Whitfield", businessDaysElapsed: 44, businessDaysInPeriod: 64, actualGP: 25600, budgetGP: 36000, lyGP: 24600 },
-  ],
-  annual: [
-    { rep: "M. Alvarez", businessDaysElapsed: 176, businessDaysInPeriod: 250, actualGP: 184200, budgetGP: 180000, lyGP: 158400 },
-    { rep: "D. Chen", businessDaysElapsed: 176, businessDaysInPeriod: 250, actualGP: 121600, budgetGP: 180000, lyGP: 153600 },
-    { rep: "R. Okafor", businessDaysElapsed: 176, businessDaysInPeriod: 250, actualGP: 104300, budgetGP: 168000, lyGP: 116400 },
-    { rep: "S. Patel", businessDaysElapsed: 176, businessDaysInPeriod: 250, actualGP: 88900, budgetGP: 156000, lyGP: 136800 },
-    { rep: "J. Whitfield", businessDaysElapsed: 176, businessDaysInPeriod: 250, actualGP: 99200, budgetGP: 144000, lyGP: 98400 },
-  ],
-};
+const amSeed = [
+  { rep: "M. Alvarez", base: 15000, pace: 1.06, ly: 0.9 },
+  { rep: "D. Chen", base: 15000, pace: 0.78, ly: 1.02 },
+  { rep: "R. Okafor", base: 14000, pace: 0.9, ly: 0.94 },
+  { rep: "S. Patel", base: 13000, pace: 0.74, ly: 1.05 },
+  { rep: "J. Whitfield", base: 12000, pace: 1.02, ly: 0.88 },
+];
 
-export function daysAheadBehind(b: RepBudget): number {
-  const dailyBudget = b.budgetGP / b.businessDaysInPeriod;
-  const dailyActual = b.actualGP / b.businessDaysElapsed;
-  if (dailyBudget === 0) return 0;
-  return (dailyActual - dailyBudget) / dailyBudget * b.businessDaysElapsed;
+/** Seasonal shape of the seeded budgets (sums to 12). */
+const budgetShape = [0.8, 0.87, 1, 1, 1.07, 1.07, 1, 1, 1, 1.07, 1.07, 1.05];
+
+const roundTo = (value: number, step: number) => Math.round(value / step) * step;
+const wobble = (i: number, seed: number, amount = 0.07) => 1 + amount * Math.sin(i * 1.9 + seed * 2.3);
+
+export const budgetSeed: Budget[] = amSeed.map((a, i) => ({
+  id: `B-2026-${i + 1}`,
+  rep: a.rep,
+  fiscalYear: 2026,
+  monthly: budgetShape.map((s) => roundTo(a.base * s, 100)),
+  updatedBy: "Jane Doe",
+  updatedAt: a.rep === "S. Patel" ? "2026-09-14 08:12" : "2026-01-06 09:30",
+}));
+
+/**
+ * Actual and last-year GP$ per Account Manager, as they'd arrive from ASI SmartBooks + Facilis Syncore.
+ * Dummy figures generated once from the seeded budgets, so editing a budget later does not move actuals.
+ */
+export interface RepActuals {
+  rep: string;
+  /** FY2026 by month. Current month is month-to-date; future months are null. */
+  monthlyActual: (number | null)[];
+  /** FY2025 (last year) full months. */
+  monthlyLy: number[];
+  todayActual: number;
+  todayLy: number;
 }
+
+export const repActuals: RepActuals[] = amSeed.map((a, idx) => {
+  const budget = budgetSeed[idx].monthly;
+  const mtdShare = currentMonthDays.elapsed / currentMonthDays.total;
+  const monthlyLy = budget.map((b, m) => roundTo(b * a.ly * wobble(m, idx + 7), 10));
+  return {
+    rep: a.rep,
+    monthlyActual: budget.map((b, m) => {
+      if (m > CURRENT_MONTH) return null;
+      const full = b * a.pace * wobble(m, idx);
+      return roundTo(m === CURRENT_MONTH ? full * mtdShare : full, 10);
+    }),
+    monthlyLy,
+    todayActual: roundTo((budget[CURRENT_MONTH] / currentMonthDays.total) * a.pace * (1 + 0.3 * Math.sin(idx * 3.1 + 1)), 10),
+    todayLy: roundTo((monthlyLy[CURRENT_MONTH] / currentMonthDays.total) * (1 + 0.15 * Math.cos(idx * 2.2)), 10),
+  };
+});
 
 /** Project Tracker (Management-only): active initiatives and prospective opportunities per account. */
 export interface ProjectTrackerEntry {
@@ -266,40 +307,51 @@ export interface AuditLogEntry {
   details: string;
 }
 
-export const auditLog: AuditLogEntry[] = [
-  { id: "AL-9001", timestamp: "2026-09-14 08:12", user: "Jane Doe", role: "Management", action: "Updated budget", entity: "S. Patel — September GP budget", details: "Changed monthly budget from $12,500 to $13,000." },
+export const auditLogSeed: AuditLogEntry[] = [
+  { id: "AL-9008", timestamp: "2026-09-15 10:04", user: "M. Alvarez", role: "Account Manager", action: "Shared sales dashboard", entity: "M. Alvarez — Sales Dashboard", details: "Shared read-only with assistant L. Brooks." },
+  { id: "AL-9001", timestamp: "2026-09-14 08:12", user: "Jane Doe", role: "Management", action: "Updated budget", entity: "S. Patel — FY2026 GP$ budget", details: "Sep: $12,500 → $13,000." },
   { id: "AL-9002", timestamp: "2026-09-13 17:40", user: "K. Sanders", role: "CSR", action: "Updated order status", entity: "OI-501 — Northgate Co-op", details: "Marked as Open, added carrier delay note." },
   { id: "AL-9003", timestamp: "2026-09-13 14:05", user: "M. Alvarez", role: "Account Manager", action: "Added account note", entity: "C-2001 — Harbor Logistics", details: "Logged weekly activity: QBR scheduled for October." },
   { id: "AL-9004", timestamp: "2026-09-12 11:22", user: "John Doe", role: "Super User", action: "Changed user role", entity: "T. Reyes", details: "Role changed from Account Manager to CSR." },
-  { id: "AL-9005", timestamp: "2026-09-11 09:50", user: "D. Chen", role: "Account Manager", action: "Added account", entity: "C-2002 — Meridian Freight", details: "New account created, priority set to A." },
+  { id: "AL-9005", timestamp: "2026-09-11 09:50", user: "Jane Doe", role: "Management", action: "Created account", entity: "C-2008 — Redline Transport", details: "New account created and assigned to R. Okafor, priority set to Prospect." },
+  { id: "AL-9007", timestamp: "2026-09-10 17:15", user: "R. Okafor", role: "Account Manager", action: "Shared sales dashboard", entity: "R. Okafor — Sales Dashboard", details: "Shared read-only with assistant P. Nguyen." },
   { id: "AL-9006", timestamp: "2026-09-10 16:33", user: "Jane Doe", role: "Management", action: "Exported report", entity: "Sales Summary — August 2026", details: "Exported CSV for board reporting." },
 ];
 
-/** System access levels reference (Settings page, Super User view). */
+/** System access levels reference (Settings page). */
 export interface AccessLevelRow {
   capability: string;
   account_manager: boolean;
+  assistant: boolean;
   csr: boolean;
   management: boolean;
   super_user: boolean;
 }
 
 export const accessLevelMatrix: AccessLevelRow[] = [
-  { capability: "View own sales performance", account_manager: true, csr: false, management: true, super_user: true },
-  { capability: "View full company performance", account_manager: false, csr: false, management: true, super_user: true },
-  { capability: "Add / edit own accounts", account_manager: true, csr: false, management: true, super_user: true },
-  { capability: "View order status", account_manager: true, csr: true, management: true, super_user: true },
-  { capability: "Update Order Excellence tracker", account_manager: false, csr: true, management: true, super_user: true },
-  { capability: "Enter / edit budgets", account_manager: false, csr: false, management: true, super_user: true },
-  { capability: "Access Project Tracker", account_manager: false, csr: false, management: true, super_user: true },
-  { capability: "View audit trail", account_manager: false, csr: false, management: true, super_user: true },
-  { capability: "Configure system / integrations", account_manager: false, csr: false, management: false, super_user: true },
+  { capability: "View own Sales Dashboard", account_manager: true, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "Compare performance vs LY, Budget, and days ahead / behind", account_manager: true, assistant: true, csr: false, management: true, super_user: true },
+  { capability: "Share own Sales Dashboard with assistants", account_manager: true, assistant: false, csr: false, management: false, super_user: false },
+  { capability: "View a Sales Dashboard shared by their Account Manager (read-only)", account_manager: false, assistant: true, csr: false, management: true, super_user: true },
+  { capability: "View company-wide metrics", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "View budgets (Account Managers: own only)", account_manager: true, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "Create / edit budgets", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "Create new customer accounts", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "View / update own accounts", account_manager: true, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "Create user accounts (incl. Assistants)", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "View order status", account_manager: true, assistant: true, csr: true, management: true, super_user: true },
+  { capability: "Update Order Excellence tracker", account_manager: false, assistant: false, csr: true, management: true, super_user: true },
+  { capability: "Access Project Tracker", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "View audit trail", account_manager: false, assistant: false, csr: false, management: true, super_user: true },
+  { capability: "Configure system / integrations", account_manager: false, assistant: false, csr: false, management: false, super_user: true },
 ];
 
 export interface OrderIssue {
   id: string;
   order: string;
   customer: string;
+  /** Account Manager who owns the customer — used to scope issues for AMs and their assistants. */
+  accountManager: string;
   issueType: string;
   severity: "low" | "medium" | "high";
   status: "open" | "in_progress" | "resolved";
@@ -308,19 +360,33 @@ export interface OrderIssue {
 }
 
 export const orderIssues: OrderIssue[] = [
-  { id: "OI-501", order: "SO-88216", customer: "Northgate Co-op", issueType: "Shipping delay", severity: "high", status: "open", assignedTo: "K. Sanders", daysOpen: 6 },
-  { id: "OI-502", order: "SO-88220", customer: "Redline Transport", issueType: "Invoice discrepancy", severity: "medium", status: "in_progress", assignedTo: "T. Reyes", daysOpen: 3 },
-  { id: "OI-503", order: "SO-88214", customer: "Meridian Freight", issueType: "Wrong item shipped", severity: "high", status: "open", assignedTo: "K. Sanders", daysOpen: 2 },
-  { id: "OI-504", order: "SO-88198", customer: "Vantage Rail Co.", issueType: "Damaged goods", severity: "medium", status: "resolved", assignedTo: "M. Duarte", daysOpen: 0 },
-  { id: "OI-505", order: "SO-88187", customer: "Summit Builders", issueType: "Backorder", severity: "low", status: "in_progress", assignedTo: "T. Reyes", daysOpen: 9 },
-  { id: "OI-506", order: "SO-88170", customer: "Palmetto Trade Partners", issueType: "Pricing error", severity: "low", status: "resolved", assignedTo: "M. Duarte", daysOpen: 0 },
+  { id: "OI-501", order: "SO-88216", customer: "Northgate Co-op", accountManager: "S. Patel", issueType: "Shipping delay", severity: "high", status: "open", assignedTo: "K. Sanders", daysOpen: 6 },
+  { id: "OI-502", order: "SO-88220", customer: "Redline Transport", accountManager: "R. Okafor", issueType: "Invoice discrepancy", severity: "medium", status: "in_progress", assignedTo: "T. Reyes", daysOpen: 3 },
+  { id: "OI-503", order: "SO-88214", customer: "Meridian Freight", accountManager: "D. Chen", issueType: "Wrong item shipped", severity: "high", status: "open", assignedTo: "K. Sanders", daysOpen: 2 },
+  { id: "OI-507", order: "SO-88213", customer: "Harbor Logistics", accountManager: "M. Alvarez", issueType: "Imprint proof pending", severity: "medium", status: "open", assignedTo: "M. Duarte", daysOpen: 1 },
+  { id: "OI-504", order: "SO-88198", customer: "Vantage Rail Co.", accountManager: "J. Whitfield", issueType: "Damaged goods", severity: "medium", status: "resolved", assignedTo: "M. Duarte", daysOpen: 0 },
+  { id: "OI-505", order: "SO-88187", customer: "Summit Builders", accountManager: "S. Patel", issueType: "Backorder", severity: "low", status: "in_progress", assignedTo: "T. Reyes", daysOpen: 9 },
+  { id: "OI-506", order: "SO-88170", customer: "Palmetto Trade Partners", accountManager: "J. Whitfield", issueType: "Pricing error", severity: "low", status: "resolved", assignedTo: "M. Duarte", daysOpen: 0 },
 ];
 
-export const reportCatalog = [
-  { id: "RPT-1", name: "Sales Summary", description: "Revenue, orders, and rep performance by period.", updated: "Daily" },
-  { id: "RPT-2", name: "Pipeline Forecast", description: "Weighted forecast across all open pipeline stages.", updated: "Daily" },
-  { id: "RPT-3", name: "Order Issue Trends", description: "Issue volume, severity mix, and resolution time.", updated: "Weekly" },
-  { id: "RPT-4", name: "Referral Partner Performance", description: "Referral volume and conversion by partner.", updated: "Monthly" },
-  { id: "RPT-5", name: "Customer Activity", description: "Order frequency and lifetime value by account.", updated: "Weekly" },
-  { id: "RPT-6", name: "Data Source Reconciliation", description: "Record counts and sync health across ASI and Syncore.", updated: "Daily" },
+/** "company" reports contain company-wide metrics and are limited to Management / Super User. */
+export interface ReportDefinition {
+  id: string;
+  name: string;
+  description: string;
+  updated: string;
+  scope: "company" | "personal";
+}
+
+export const reportCatalog: ReportDefinition[] = [
+  { id: "RPT-7", name: "Budget Attainment", description: "Actual GP$ vs Budget vs LY with days ahead / behind, by Account Manager.", updated: "Daily", scope: "company" },
+  { id: "RPT-1", name: "Sales Summary", description: "Revenue, orders, and rep performance by period.", updated: "Daily", scope: "company" },
+  { id: "RPT-2", name: "Pipeline Forecast", description: "Weighted forecast across all open pipeline stages.", updated: "Daily", scope: "company" },
+  { id: "RPT-3", name: "Order Issue Trends", description: "Issue volume, severity mix, and resolution time.", updated: "Weekly", scope: "company" },
+  { id: "RPT-4", name: "Referral Partner Performance", description: "Referral volume and conversion by partner.", updated: "Monthly", scope: "company" },
+  { id: "RPT-5", name: "Customer Activity", description: "Order frequency and lifetime value by account.", updated: "Weekly", scope: "company" },
+  { id: "RPT-6", name: "Data Source Reconciliation", description: "Record counts and sync health across ASI and Syncore.", updated: "Daily", scope: "company" },
+  { id: "RPT-8", name: "My Sales Performance", description: "Your GP$ vs Budget vs LY with days ahead / behind, by period.", updated: "Daily", scope: "personal" },
+  { id: "RPT-9", name: "My Account Activity", description: "Order frequency, lifetime value, and logged activity for your accounts.", updated: "Weekly", scope: "personal" },
+  { id: "RPT-10", name: "My Pipeline", description: "Your open deals by stage with expected close dates.", updated: "Daily", scope: "personal" },
 ];

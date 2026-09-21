@@ -3,10 +3,11 @@ import { Card, PageHeader, Button } from "../components/ui";
 import { RestrictedNotice } from "../components/RestrictedNotice";
 import { downloadCsv } from "../lib/csv";
 import { useRole } from "../context/RoleContext";
-import { auditLog } from "../data/mockData";
+import { useDemoData } from "../context/DemoDataContext";
 
 export default function AuditTrail() {
   const { canViewAuditTrail } = useRole();
+  const { auditLog } = useDemoData();
 
   if (!canViewAuditTrail) {
     return (

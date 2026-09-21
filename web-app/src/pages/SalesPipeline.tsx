@@ -1,13 +1,32 @@
 import { Plus } from "lucide-react";
 import { Card, PageHeader, Button, currency } from "../components/ui";
+import { RestrictedNotice } from "../components/RestrictedNotice";
+import { useRole } from "../context/RoleContext";
 import { pipelineDeals, pipelineStages } from "../data/mockData";
 
 export default function SalesPipeline() {
+  const { profile, canViewCpr, canViewCompanyMetrics } = useRole();
+
+  if (!canViewCpr) {
+    return (
+      <div>
+        <PageHeader title="Sales Pipeline" description="Sales strategy pipeline." />
+        <RestrictedNotice requiredRoles="Account Managers, Management, and Super User" />
+      </div>
+    );
+  }
+
+  const scopedDeals = canViewCompanyMetrics ? pipelineDeals : pipelineDeals.filter((d) => d.owner === profile.name);
+
   return (
     <div className="flex h-full flex-col">
       <PageHeader
         title="Sales Pipeline"
-        description="Sales strategy pipeline across all active and won deals."
+        description={
+          canViewCompanyMetrics
+            ? "Sales strategy pipeline across all active and won deals."
+            : `Your sales strategy pipeline, ${profile.name}.`
+        }
         actions={
           <Button variant="primary">
             <Plus size={15} /> Add Deal
@@ -17,7 +36,7 @@ export default function SalesPipeline() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {pipelineStages.map((stage) => {
-          const deals = pipelineDeals.filter((d) => d.stage === stage.key);
+          const deals = scopedDeals.filter((d) => d.stage === stage.key);
           const total = deals.reduce((sum, d) => sum + d.value, 0);
           return (
             <div key={stage.key} className="flex flex-col">

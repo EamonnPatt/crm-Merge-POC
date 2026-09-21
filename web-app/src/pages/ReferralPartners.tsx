@@ -1,9 +1,22 @@
 import { Plus } from "lucide-react";
 import { Card, PageHeader, Badge, Button, StatCard, currency } from "../components/ui";
+import { RestrictedNotice } from "../components/RestrictedNotice";
+import { useRole } from "../context/RoleContext";
 import { referralPartners } from "../data/mockData";
 import { Handshake, TrendingUp, DollarSign } from "lucide-react";
 
 export default function ReferralPartners() {
+  const { canViewCpr, canViewCompanyMetrics } = useRole();
+
+  if (!canViewCpr) {
+    return (
+      <div>
+        <PageHeader title="Referral Partners" description="Third parties referring business into the sales pipeline." />
+        <RestrictedNotice requiredRoles="Account Managers, Management, and Super User" />
+      </div>
+    );
+  }
+
   const totalReferrals = referralPartners.reduce((sum, p) => sum + p.referralsSent, 0);
   const totalConversions = referralPartners.reduce((sum, p) => sum + p.conversions, 0);
   const totalOwed = referralPartners.reduce((sum, p) => sum + p.commissionOwed, 0);
@@ -12,14 +25,21 @@ export default function ReferralPartners() {
     <div>
       <PageHeader
         title="Referral Partners"
-        description="Third parties referring business into the sales pipeline."
+        description={
+          canViewCompanyMetrics
+            ? "Third parties referring business into the sales pipeline."
+            : "Partner directory. Program totals and commissions are visible to Management only."
+        }
         actions={
-          <Button variant="primary">
-            <Plus size={15} /> Add Partner
-          </Button>
+          canViewCompanyMetrics && (
+            <Button variant="primary">
+              <Plus size={15} /> Add Partner
+            </Button>
+          )
         }
       />
 
+      {canViewCompanyMetrics && (
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Referrals Sent" value={String(totalReferrals)} icon={<Handshake size={18} />} />
         <StatCard
@@ -29,6 +49,7 @@ export default function ReferralPartners() {
         />
         <StatCard label="Commission Owed" value={currency(totalOwed)} icon={<DollarSign size={18} />} />
       </div>
+      )}
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -39,7 +60,7 @@ export default function ReferralPartners() {
                 <th className="px-5 py-3 font-medium">Contact</th>
                 <th className="px-5 py-3 font-medium">Referrals Sent</th>
                 <th className="px-5 py-3 font-medium">Conversions</th>
-                <th className="px-5 py-3 font-medium">Commission Owed</th>
+                {canViewCompanyMetrics && <th className="px-5 py-3 font-medium">Commission Owed</th>}
                 <th className="px-5 py-3 font-medium">Status</th>
               </tr>
             </thead>
@@ -50,7 +71,7 @@ export default function ReferralPartners() {
                   <td className="px-5 py-3 text-slate-500">{p.contact}</td>
                   <td className="px-5 py-3 text-slate-600">{p.referralsSent}</td>
                   <td className="px-5 py-3 text-slate-600">{p.conversions}</td>
-                  <td className="px-5 py-3 font-medium text-slate-800">{currency(p.commissionOwed)}</td>
+                  {canViewCompanyMetrics && <td className="px-5 py-3 font-medium text-slate-800">{currency(p.commissionOwed)}</td>}
                   <td className="px-5 py-3">
                     <Badge tone={p.status === "active" ? "emerald" : "slate"}>
                       {p.status === "active" ? "Active" : "Inactive"}

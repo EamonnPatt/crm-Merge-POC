@@ -1,0 +1,14 @@
+Must add budgets for account managers to see and for managment to edit and create. 
+
+must add functionality for managment to create new accounts
+
+must add functionality for account managers to share their sales dashboards with their assistants.
+
+create assistant level account
+
+only managment and super user should be able to see company wide metrics not account managers or asssitants, csrs
+
+All users must be able to compare performance against:
+● Last Year (LY)
+● Actual Budget
+● Days ahead or behind target

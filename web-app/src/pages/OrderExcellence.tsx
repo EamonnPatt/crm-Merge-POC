@@ -22,10 +22,13 @@ const statusLabel: Record<OrderIssue["status"], string> = {
 };
 
 export default function OrderExcellence() {
-  const { canEditOrderExcellence } = useRole();
-  const open = orderIssues.filter((i) => i.status === "open").length;
-  const inProgress = orderIssues.filter((i) => i.status === "in_progress").length;
-  const resolved = orderIssues.filter((i) => i.status === "resolved").length;
+  const { profile, visibleReps, canEditOrderExcellence } = useRole();
+  // CSRs work the full queue; Account Managers see their own accounts' issues and assistants see their Account Managers'.
+  const seesAll = canEditOrderExcellence;
+  const issues = seesAll ? orderIssues : orderIssues.filter((i) => visibleReps.includes(i.accountManager));
+  const open = issues.filter((i) => i.status === "open").length;
+  const inProgress = issues.filter((i) => i.status === "in_progress").length;
+  const resolved = issues.filter((i) => i.status === "resolved").length;
 
   return (
     <div>
@@ -34,7 +37,9 @@ export default function OrderExcellence() {
         description={
           canEditOrderExcellence
             ? "Updated nightly by CSRs to flag anything that could push an order past its in-hand date."
-            : "Tracking order-related issues across both source systems. Updated daily by CSRs."
+            : profile.role === "assistant"
+            ? "Order issues on accounts of the Account Managers who've shared with you. Updated daily by CSRs."
+            : "Order issues on your accounts. Updated daily by CSRs."
         }
         actions={
           <>
@@ -64,6 +69,7 @@ export default function OrderExcellence() {
                 <th className="px-5 py-3 font-medium">Issue</th>
                 <th className="px-5 py-3 font-medium">Order</th>
                 <th className="px-5 py-3 font-medium">Customer</th>
+                <th className="px-5 py-3 font-medium">Account Manager</th>
                 <th className="px-5 py-3 font-medium">Type</th>
                 <th className="px-5 py-3 font-medium">Severity</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -72,11 +78,12 @@ export default function OrderExcellence() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orderIssues.map((issue) => (
+              {issues.map((issue) => (
                 <tr key={issue.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-800">{issue.id}</td>
                   <td className="px-5 py-3 text-slate-600">{issue.order}</td>
                   <td className="px-5 py-3 text-slate-600">{issue.customer}</td>
+                  <td className="px-5 py-3 text-slate-600">{issue.accountManager}</td>
                   <td className="px-5 py-3 text-slate-600">{issue.issueType}</td>
                   <td className="px-5 py-3">
                     <Badge tone={severityTone[issue.severity]}>
@@ -90,6 +97,13 @@ export default function OrderExcellence() {
                   <td className="px-5 py-3 text-slate-500">{issue.daysOpen}</td>
                 </tr>
               ))}
+              {issues.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-8 text-center text-sm text-slate-400">
+                    No order issues on your accounts.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

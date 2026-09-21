@@ -12,6 +12,7 @@ import {
   Building2,
   ClipboardList,
   History,
+  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRole } from "../context/RoleContext";
@@ -29,8 +30,17 @@ interface NavSection {
 }
 
 export default function Sidebar() {
-  const { profile, canViewProjectTracker, canViewAuditTrail } = useRole();
-  const isCsr = profile.role === "csr";
+  const {
+    profile,
+    canViewSalesDashboard,
+    canViewBudgets,
+    canEditBudgets,
+    canViewCpr,
+    canViewReports,
+    canViewProjectTracker,
+    canViewAuditTrail,
+  } = useRole();
+  const isAssistant = profile.role === "assistant";
 
   const sections: NavSection[] = [
     {
@@ -39,15 +49,18 @@ export default function Sidebar() {
     },
     {
       title: "Sales Reporting",
-      items: [{ to: "/sales", label: "Sales Dashboard", icon: DollarSign, hidden: isCsr }],
+      items: [
+        { to: "/sales", label: isAssistant ? "Shared Dashboards" : "Sales Dashboard", icon: DollarSign, hidden: !canViewSalesDashboard },
+        { to: "/budgets", label: canEditBudgets ? "Budgets" : "My Budget", icon: Wallet, hidden: !canViewBudgets },
+      ],
     },
     {
       title: "CPR",
       items: [
-        { to: "/customers", label: "Accounts", icon: Users, hidden: isCsr },
-        { to: "/prospects", label: "Prospects", icon: Target, hidden: isCsr },
-        { to: "/referral-partners", label: "Referral Partners", icon: Handshake, hidden: isCsr },
-        { to: "/pipeline", label: "Sales Pipeline", icon: TrendingUp, hidden: isCsr },
+        { to: "/customers", label: "Accounts", icon: Users, hidden: !canViewCpr },
+        { to: "/prospects", label: "Prospects", icon: Target, hidden: !canViewCpr },
+        { to: "/referral-partners", label: "Referral Partners", icon: Handshake, hidden: !canViewCpr },
+        { to: "/pipeline", label: "Sales Pipeline", icon: TrendingUp, hidden: !canViewCpr },
       ],
     },
     {
@@ -64,7 +77,7 @@ export default function Sidebar() {
     {
       title: "General",
       items: [
-        { to: "/reports", label: "Reports", icon: FileBarChart, hidden: isCsr },
+        { to: "/reports", label: "Reports", icon: FileBarChart, hidden: !canViewReports },
         { to: "/settings", label: "Settings", icon: SettingsIcon },
       ],
     },

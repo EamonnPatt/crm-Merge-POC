@@ -1,5 +1,7 @@
 import { Plus } from "lucide-react";
 import { Card, PageHeader, Badge, Button, currency } from "../components/ui";
+import { RestrictedNotice } from "../components/RestrictedNotice";
+import { useRole } from "../context/RoleContext";
 import { prospects, pipelineStages, type PipelineStageKey } from "../data/mockData";
 
 const stageTone: Record<PipelineStageKey, "slate" | "sky" | "amber" | "violet" | "emerald"> = {
@@ -11,11 +13,26 @@ const stageTone: Record<PipelineStageKey, "slate" | "sky" | "amber" | "violet" |
 };
 
 export default function Prospects() {
+  const { profile, canViewCpr, canViewCompanyMetrics } = useRole();
+
+  if (!canViewCpr) {
+    return (
+      <div>
+        <PageHeader title="Prospects" description="Active leads being worked ahead of the sales pipeline." />
+        <RestrictedNotice requiredRoles="Account Managers, Management, and Super User" />
+      </div>
+    );
+  }
+
+  const visible = canViewCompanyMetrics ? prospects : prospects.filter((p) => p.owner === profile.name);
+
   return (
     <div>
       <PageHeader
         title="Prospects"
-        description="Active leads being worked ahead of the sales pipeline."
+        description={
+          canViewCompanyMetrics ? "Active leads being worked ahead of the sales pipeline." : "Your active leads, ahead of your sales pipeline."
+        }
         actions={
           <Button variant="primary">
             <Plus size={15} /> Add Prospect
@@ -37,7 +54,7 @@ export default function Prospects() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {prospects.map((p) => {
+              {visible.map((p) => {
                 const stageLabel = pipelineStages.find((s) => s.key === p.stage)?.label ?? p.stage;
                 return (
                   <tr key={p.id} className="hover:bg-slate-50">
@@ -52,6 +69,13 @@ export default function Prospects() {
                   </tr>
                 );
               })}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
+                    No prospects yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
