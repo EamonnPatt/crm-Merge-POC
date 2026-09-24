@@ -1,15 +1,16 @@
-// Production server: serves the Vite build in dist/ and falls back to
+// Production server: serves the Vite build in web-app/dist and falls back to
 // index.html for client-side routes (React Router).
-import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import compression from 'compression'
-import express from 'express'
+// CommonJS on purpose: cPanel's Passenger loads the startup file with require().
+const { existsSync } = require('node:fs')
+const path = require('node:path')
+const compression = require('compression')
+const express = require('express')
 
-const distDir = fileURLToPath(new URL('./dist', import.meta.url))
-const indexHtml = fileURLToPath(new URL('./dist/index.html', import.meta.url))
+const distDir = path.join(__dirname, 'web-app', 'dist')
+const indexHtml = path.join(distDir, 'index.html')
 
 if (!existsSync(indexHtml)) {
-  console.error('dist/index.html not found. Run "npm run build" before "npm start".')
+  console.error('web-app/dist/index.html not found. Run "npm run build" before starting the app.')
   process.exit(1)
 }
 
@@ -25,7 +26,7 @@ app.get('/healthz', (_req, res) => {
 // fallthrough: false makes a missing asset a 404 instead of index.html.
 app.use(
   '/assets',
-  express.static(`${distDir}/assets`, { immutable: true, maxAge: '1y', fallthrough: false }),
+  express.static(path.join(distDir, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }),
 )
 app.use(express.static(distDir, { index: false }))
 
@@ -42,6 +43,8 @@ app.use((err, _req, res, next) => {
   next(err)
 })
 
+// Passenger (cPanel) intercepts listen() and binds its own socket, so the port
+// only matters on hosts that set PORT or when running locally.
 const port = Number(process.env.PORT) || 3000
 const server = app.listen(port, (err) => {
   if (err) {

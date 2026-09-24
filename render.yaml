@@ -1,10 +1,11 @@
 services:
   - type: web
     name: crm-merge-poc
-    runtime: node
-    plan: free
+    env: static
     rootDir: web-app
-    # --include=dev: the build needs Vite/TypeScript even if NODE_ENV=production is set.
-    buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
-    healthCheckPath: /healthz
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 sessions/*
 !sessions/.gitkeep
+node_modules/
