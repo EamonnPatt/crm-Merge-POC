@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# Add-Impact Sales Platform (demo)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Tailwind, built with Vite and served in production by a small Express server (`server.js`). Runs on dummy data held in the browser; there is no database yet.
 
-Currently, two official plugins are available:
+Requires Node 20.19+ (see `.node-version`).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev        # Vite dev server with hot reload
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Production
+
+```sh
+npm ci --include=dev
+npm run build      # type-check and build to dist/
+npm start          # serve dist/ on $PORT (default 3000)
+```
+
+The server:
+
+- serves the built files from `dist/`, with long-lived caching for the fingerprinted files in `dist/assets/`
+- returns `index.html` for any other page URL, so deep links like `/sales-pipeline` work on refresh
+- answers `GET /healthz` with `ok` for host health checks
+- shuts down cleanly on `SIGTERM`
+
+## Deploying
+
+`render.yaml` in the repo root is a Render Blueprint that deploys this folder as a Node web service. On any other Node host, set the app root to `web-app/`, the build command to `npm ci --include=dev && npm run build`, and the start command to `npm start`. The host must provide `PORT`.
