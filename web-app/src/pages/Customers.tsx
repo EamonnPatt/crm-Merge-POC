@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Plus, Download, CheckCircle2, Circle } from "lucide-react";
-import { Card, PageHeader, Badge, Button, Field, Modal, SegmentedControl, currency, inputClass } from "../components/ui";
+import { useSearchParams } from "react-router-dom";
+import { Plus, Download, CheckCircle2, Circle, Pencil } from "lucide-react";
+import { Card, PageHeader, Badge, Button, Field, Modal, SegmentedControl, currency, inputClass, inlineSelectClass } from "../components/ui";
 import { CsvImportButton } from "../components/CsvImportButton";
 import { RestrictedNotice } from "../components/RestrictedNotice";
 import { downloadCsv } from "../lib/csv";
 import { todayIso } from "../lib/calendar";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
-import type { AccountPriority, AccountSource } from "../data/mockData";
+import type { AccountPriority, AccountSource, Customer } from "../data/mockData";
 
 const priorityTone: Record<AccountPriority, "rose" | "amber" | "sky"> = {
   A: "rose",
@@ -26,6 +27,8 @@ const sourceTone: Record<AccountSource, "sky" | "violet" | "emerald"> = {
 export default function Customers() {
   const { profile, canViewCompanyMetrics, canViewCpr, canCreateAccounts } = useRole();
   const { accounts } = useDemoData();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get("q") ?? "";
   const [filter, setFilter] = useState<AccountPriority | "all">("all");
   const [addOpen, setAddOpen] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
@@ -40,7 +43,10 @@ export default function Customers() {
   }
 
   const scoped = canViewCompanyMetrics ? accounts : accounts.filter((c) => c.accountManager === profile.ownerName);
-  const visible = filter === "all" ? scoped : scoped.filter((c) => c.priority === filter);
+  const needle = query.trim().toLowerCase();
+  const visible = scoped
+    .filter((c) => filter === "all" || c.priority === filter)
+    .filter((c) => !needle || [c.company, c.name, c.email, c.accountManager, c.notes].some((v) => v.toLowerCase().includes(needle)));
 
   return (
     <div>
@@ -84,12 +90,21 @@ export default function Customers() {
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <SegmentedControl
           options={[{ key: "all" as const, label: "All" }, ...priorities.map((p) => ({ key: p, label: `Priority ${p}` }))]}
           value={filter}
           onChange={setFilter}
         />
+        <input
+          type="search"
+          aria-label="Filter accounts"
+          placeholder="Filter by company, contact, note…"
+          className={`${inlineSelectClass} min-w-[14rem]`}
+          value={query}
+          onChange={(e) => setSearchParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
+        />
+        <span className="text-xs text-slate-400">Click Wkly / Mthly to log activity; use the pencil to edit notes.</span>
       </div>
 
       {justAdded && (
@@ -137,26 +152,11 @@ export default function Customers() {
                   <td className="px-5 py-3 font-medium text-slate-800">{c.lifetimeValue > 0 ? currency(c.lifetimeValue) : "—"}</td>
                   <td className="px-5 py-3 text-slate-600">{c.lyGrossProfit > 0 ? currency(c.lyGrossProfit) : "—"}</td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1" title="Weekly activity logged">
-                        {c.weeklyActivityLogged ? (
-                          <CheckCircle2 size={14} className="text-emerald-500" />
-                        ) : (
-                          <Circle size={14} className="text-slate-300" />
-                        )}
-                        Wkly
-                      </span>
-                      <span className="flex items-center gap-1" title="Monthly activity logged">
-                        {c.monthlyActivityLogged ? (
-                          <CheckCircle2 size={14} className="text-emerald-500" />
-                        ) : (
-                          <Circle size={14} className="text-slate-300" />
-                        )}
-                        Mthly
-                      </span>
-                    </div>
+                    <ActivityToggles account={c} />
                   </td>
-                  <td className="px-5 py-3 max-w-xs text-xs text-slate-500">{c.notes}</td>
+                  <td className="px-5 py-3 max-w-xs text-xs text-slate-500">
+                    <AccountNotes account={c} />
+                  </td>
                   <td className="px-5 py-3">
                     <Badge tone={sourceTone[c.source]}>{c.source}</Badge>
                   </td>
@@ -294,5 +294,77 @@ function AddAccountModal({ onClose, onCreated }: { onClose: () => void; onCreate
       </div>
       {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
     </Modal>
+  );
+}
+
+function ActivityToggles({ account }: { account: Customer }) {
+  const { profile } = useRole();
+  const { updateAccountActivity } = useDemoData();
+  const toggle = (key: "weeklyActivityLogged" | "monthlyActivityLogged", label: string) => {
+    const on = account[key];
+    return (
+      <button
+        onClick={() => updateAccountActivity(account.id, { [key]: !on }, profile)}
+        className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-slate-100"
+        title={on ? `${label} activity logged — click to clear` : `Log ${label.toLowerCase()} activity`}
+        aria-pressed={on}
+        aria-label={`${label} activity for ${account.company}`}
+      >
+        {on ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Circle size={14} className="text-slate-300" />}
+        {label === "Weekly" ? "Wkly" : "Mthly"}
+      </button>
+    );
+  };
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+      {toggle("weeklyActivityLogged", "Weekly")}
+      {toggle("monthlyActivityLogged", "Monthly")}
+    </div>
+  );
+}
+
+function AccountNotes({ account }: { account: Customer }) {
+  const { profile } = useRole();
+  const { updateAccountActivity } = useDemoData();
+  const [draft, setDraft] = useState<string | null>(null);
+
+  if (draft === null) {
+    return (
+      <div className="group flex items-start gap-1.5">
+        <span>{account.notes || <span className="text-slate-300">No notes</span>}</span>
+        <button
+          className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+          aria-label={`Edit notes for ${account.company}`}
+          onClick={() => setDraft(account.notes)}
+        >
+          <Pencil size={12} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <textarea
+        aria-label={`Notes for ${account.company}`}
+        className={`${inputClass} h-16 resize-none text-xs`}
+        value={draft}
+        autoFocus
+        onChange={(e) => setDraft(e.target.value)}
+      />
+      <div className="flex gap-1.5">
+        <Button
+          className="px-2 py-1 text-xs"
+          onClick={() => {
+            if (draft.trim() !== account.notes) updateAccountActivity(account.id, { notes: draft.trim() }, profile);
+            setDraft(null);
+          }}
+        >
+          Save
+        </Button>
+        <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setDraft(null)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }

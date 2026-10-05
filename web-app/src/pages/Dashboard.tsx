@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Share2, UserCheck } from "lucide-react";
 import { Card, PageHeader, StatCard, Badge, currency } from "../components/ui";
-import { PerformanceStatCards, PerformanceTrendChart, signedCurrency } from "../components/performance";
+import { MetricSwitch, PerformanceStatCards, PerformanceTrendChart, signedCurrency } from "../components/performance";
+import { useMetricPreference } from "../lib/usePreference";
+import { daysOpen, lastTrackerUpdate, severityRank, severityTone } from "../lib/orderIssues";
+import { relativeStamp } from "../lib/calendar";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
 import { AS_OF_LABEL, FISCAL_YEAR } from "../lib/calendar";
@@ -17,10 +20,7 @@ import {
   withMetrics,
   type PerformanceMetrics,
 } from "../lib/performance";
-import { pipelineDeals, pipelineStages, orderIssues, dataSources, type OrderIssue } from "../data/mockData";
-
-const severityRank: Record<OrderIssue["severity"], number> = { high: 0, medium: 1, low: 2 };
-const severityTone: Record<OrderIssue["severity"], "rose" | "amber" | "slate"> = { high: "rose", medium: "amber", low: "slate" };
+import { pipelineStages, dataSources, metricLabel, type Metric, type OrderIssue } from "../data/mockData";
 
 export default function Dashboard() {
   const { profile } = useRole();
@@ -32,12 +32,14 @@ export default function Dashboard() {
 /** Management / Super User (company-wide) and Account Managers (own figures only). */
 function SalesHome() {
   const { profile, canViewCompanyMetrics, visibleReps } = useRole();
-  const { budgets } = useDemoData();
+  const { perfInputs, deals: allDeals, orderIssues } = useDemoData();
+  const [metric, setMetric] = useMetricPreference();
+  const inputs = perfInputs(metric);
 
-  const mtd = withMetrics(combinedPerformance(visibleReps, "monthly", budgets));
-  const ytd = withMetrics(combinedPerformance(visibleReps, "annual", budgets));
-  const series = monthlySeries(visibleReps, budgets);
-  const deals = pipelineDeals.filter((d) => visibleReps.includes(d.owner));
+  const mtd = withMetrics(combinedPerformance(visibleReps, "monthly", inputs));
+  const ytd = withMetrics(combinedPerformance(visibleReps, "annual", inputs));
+  const series = monthlySeries(visibleReps, inputs);
+  const deals = allDeals.filter((d) => visibleReps.includes(d.owner));
   const issues = orderIssues.filter((i) => i.status !== "resolved" && (canViewCompanyMetrics || visibleReps.includes(i.accountManager)));
 
   return (
@@ -49,22 +51,28 @@ function SalesHome() {
             ? "Company-wide snapshot across Sales Reporting, CPR, and Order Excellence."
             : `Your snapshot, ${profile.name} — your own accounts, pipeline, and performance only.`
         }
-        actions={<span className="text-xs text-slate-400">Figures as of {AS_OF_LABEL}</span>}
+        actions={
+          <>
+            <MetricSwitch value={metric} onChange={setMetric} />
+            <span className="text-xs text-slate-400">Figures as of {AS_OF_LABEL}</span>
+          </>
+        }
       />
 
-      <PerformanceStatCards metrics={mtd} period="monthly" />
+      <PerformanceStatCards metrics={mtd} period="monthly" metric={metric} />
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <PerformanceTrendChart
           data={series}
+          metric={metric}
           className="lg:col-span-2"
-          title={canViewCompanyMetrics ? "Company GP$ vs Budget vs Last Year" : "Your GP$ vs Budget vs Last Year"}
+          title={canViewCompanyMetrics ? `Company ${metricLabel[metric]} vs Budget vs Last Year` : `Your ${metricLabel[metric]} vs Budget vs Last Year`}
         />
-        {canViewCompanyMetrics ? <DataSourceCard /> : <BudgetSummaryCard ytd={ytd} />}
+        {canViewCompanyMetrics ? <DataSourceCard /> : <BudgetSummaryCard ytd={ytd} metric={metric} />}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {canViewCompanyMetrics ? <RepPaceCard reps={visibleReps} /> : <OpenIssuesCard issues={issues} title="Open Order Issues on Your Accounts" />}
+        {canViewCompanyMetrics ? <RepPaceCard reps={visibleReps} metric={metric} /> : <OpenIssuesCard issues={issues} title="Open Order Issues on Your Accounts" />}
 
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-700">{canViewCompanyMetrics ? "Pipeline by Stage" : "Your Pipeline by Stage"}</h3>
@@ -121,11 +129,13 @@ function DataSourceCard() {
   );
 }
 
-function BudgetSummaryCard({ ytd }: { ytd: PerformanceMetrics }) {
+function BudgetSummaryCard({ ytd, metric }: { ytd: PerformanceMetrics; metric: Metric }) {
   const status = paceStatus(ytd.daysAheadBehind);
   return (
     <Card className="flex flex-col p-5">
-      <h3 className="text-sm font-semibold text-slate-700">Your FY{FISCAL_YEAR} Budget</h3>
+      <h3 className="text-sm font-semibold text-slate-700">
+        Your FY{FISCAL_YEAR} {metricLabel[metric]} Budget
+      </h3>
       {ytd.budget === 0 ? (
         <p className="mt-3 flex-1 text-sm text-slate-500">Management hasn't set your budget yet.</p>
       ) : (
@@ -165,19 +175,19 @@ function BudgetSummaryCard({ ytd }: { ytd: PerformanceMetrics }) {
   );
 }
 
-function RepPaceCard({ reps }: { reps: string[] }) {
-  const { budgets } = useDemoData();
+function RepPaceCard({ reps, metric }: { reps: string[]; metric: Metric }) {
+  const { perfInputs } = useDemoData();
   return (
     <Card className="p-5 lg:col-span-2">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700">Account Manager Pace — Month to Date</h3>
+        <h3 className="text-sm font-semibold text-slate-700">Account Manager Pace — Month to Date ({metricLabel[metric]})</h3>
         <Link to="/sales" className="text-xs font-medium text-brand-600 hover:underline">
           Open Sales Dashboard
         </Link>
       </div>
       <div className="space-y-3.5">
         {reps.map((rep) => {
-          const m = withMetrics(repPerformance(rep, "monthly", budgets));
+          const m = withMetrics(repPerformance(rep, "monthly", perfInputs(metric)));
           const status = paceStatus(m.daysAheadBehind);
           return (
             <Link key={rep} to={`/sales?rep=${encodeURIComponent(rep)}`} className="block rounded-lg px-2 py-1.5 hover:bg-slate-50">
@@ -207,7 +217,7 @@ function RepPaceCard({ reps }: { reps: string[] }) {
 }
 
 function OpenIssuesCard({ issues, title, highlightAssignee }: { issues: OrderIssue[]; title: string; highlightAssignee?: string }) {
-  const sorted = [...issues].sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || b.daysOpen - a.daysOpen);
+  const sorted = [...issues].sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || daysOpen(b) - daysOpen(a));
   return (
     <Card className="overflow-hidden lg:col-span-2">
       <div className="flex items-center justify-between px-5 pt-5">
@@ -233,7 +243,7 @@ function OpenIssuesCard({ issues, title, highlightAssignee }: { issues: OrderIss
                 </td>
                 <td className="px-5 py-2.5 text-xs text-slate-500">
                   {issue.assignedTo}
-                  <div className="text-slate-400">{issue.daysOpen}d open</div>
+                  <div className="text-slate-400">{daysOpen(issue)}d open</div>
                 </td>
               </tr>
             ))}
@@ -247,7 +257,7 @@ function OpenIssuesCard({ issues, title, highlightAssignee }: { issues: OrderIss
 /** Assistants: only the Sales Dashboards their Account Managers have shared with them. */
 function AssistantDashboard() {
   const { profile, visibleReps } = useRole();
-  const { budgets, shares, team } = useDemoData();
+  const { perfInputs, shares, team, orderIssues } = useDemoData();
   const supports = team.find((m) => m.id === profile.userId)?.supports ?? [];
   const notShared = supports.filter((rep) => !visibleReps.includes(rep));
   const issues = orderIssues.filter((i) => i.status !== "resolved" && visibleReps.includes(i.accountManager));
@@ -271,7 +281,7 @@ function AssistantDashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {visibleReps.map((rep) => {
-            const m = withMetrics(repPerformance(rep, "monthly", budgets));
+            const m = withMetrics(repPerformance(rep, "monthly", perfInputs("gp")));
             const status = paceStatus(m.daysAheadBehind);
             const share = shares.find((s) => s.owner === rep && s.assistant === profile.name);
             return (
@@ -331,12 +341,20 @@ function AssistantDashboard() {
 /** CSRs: order-support workload. No sales performance or company-wide metrics. */
 function CsrDashboard() {
   const { profile } = useRole();
+  const { orderIssues } = useDemoData();
   const active = orderIssues.filter((i) => i.status !== "resolved");
+  const lastUpdate = lastTrackerUpdate(orderIssues);
   const mine = active.filter((i) => i.assignedTo === profile.name);
 
   return (
     <div>
       <PageHeader title="Order Support" description={`Welcome, ${profile.name}. Open order issues across both source systems.`} />
+      {lastUpdate && (
+        <Card className={`mb-4 p-3 text-sm ${lastUpdate.stale ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+          Order Excellence last updated by <span className="font-semibold">{lastUpdate.by}</span>, {relativeStamp(lastUpdate.at)}
+          {lastUpdate.stale && " — no updates in over 24 hours. Please post today's update."}
+        </Card>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Assigned to You" value={String(mine.length)} icon={<UserCheck size={18} />} />
         <StatCard
@@ -348,7 +366,7 @@ function CsrDashboard() {
         />
         <StatCard label="In Progress" value={String(active.filter((i) => i.status === "in_progress").length)} icon={<Clock size={18} />} />
         <StatCard
-          label="Resolved (30d)"
+          label="Resolved"
           value={String(orderIssues.filter((i) => i.status === "resolved").length)}
           deltaTone="positive"
           icon={<CheckCircle2 size={18} />}

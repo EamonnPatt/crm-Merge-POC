@@ -29,6 +29,10 @@ interface RoleContextValue {
   canViewCpr: boolean;
   canViewReports: boolean;
   canViewProjectTracker: boolean;
+  /** Management sees every project; Account Managers (Q-7) only their own. */
+  canViewAllProjects: boolean;
+  /** Account Managers see every Account Manager's order issues read-only (Q-8). */
+  canViewAllOrderIssues: boolean;
   canViewAuditTrail: boolean;
   canEditOrderExcellence: boolean;
   canConfigureSystem: boolean;
@@ -40,7 +44,7 @@ const USER_KEY = "add-impact-demo-user";
 const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const { team, shares } = useDemoData();
+  const { team, shares, settings } = useDemoData();
   const [userId, setUserId] = useState<string>(() => {
     try {
       return localStorage.getItem(USER_KEY) ?? DEFAULT_USER_ID;
@@ -91,7 +95,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     canManageUsers: isManagement,
     canViewCpr: isManagement || role === "account_manager",
     canViewReports: isManagement || role === "account_manager",
-    canViewProjectTracker: isManagement,
+    canViewProjectTracker: isManagement || (role === "account_manager" && settings.amProjectAccess),
+    canViewAllProjects: isManagement,
+    canViewAllOrderIssues: isManagement || role === "csr" || (role === "account_manager" && settings.amSeeAllOrderIssues),
     canViewAuditTrail: isManagement,
     canEditOrderExcellence: role === "csr" || isManagement,
     canConfigureSystem: role === "super_user",

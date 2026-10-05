@@ -117,13 +117,21 @@ export const inputClass =
 /** For selects that sit inline in a toolbar rather than filling a form column. */
 export const inlineSelectClass = inputClass.replace("w-full", "w-auto");
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <label className="block">
+/** A labeled form control. Use `group` when the child is a set of buttons (a <label> would name only the first one). */
+export function Field({ label, hint, group = false, children }: { label: string; hint?: string; group?: boolean; children: ReactNode }) {
+  const content = (
+    <>
       <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
-    </label>
+    </>
+  );
+  return group ? (
+    <div role="group" aria-label={label} className="block">
+      {content}
+    </div>
+  ) : (
+    <label className="block">{content}</label>
   );
 }
 
@@ -192,14 +200,27 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-600" : "bg-slate-300"}`}
+      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-600" : "bg-slate-300"} ${
+        disabled ? "cursor-not-allowed opacity-50" : ""
+      }`}
     >
       <span
         className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${

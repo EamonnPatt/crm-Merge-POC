@@ -61,6 +61,7 @@ export default function Sidebar() {
         { to: "/prospects", label: "Prospects", icon: Target, hidden: !canViewCpr },
         { to: "/referral-partners", label: "Referral Partners", icon: Handshake, hidden: !canViewCpr },
         { to: "/pipeline", label: "Sales Pipeline", icon: TrendingUp, hidden: !canViewCpr },
+        { to: "/project-tracker", label: "Project Tracker", icon: ClipboardList, hidden: !canViewProjectTracker },
       ],
     },
     {
@@ -70,7 +71,6 @@ export default function Sidebar() {
     {
       title: "Management",
       items: [
-        { to: "/project-tracker", label: "Project Tracker", icon: ClipboardList, hidden: !canViewProjectTracker },
         { to: "/audit-trail", label: "Audit Trail", icon: History, hidden: !canViewAuditTrail },
       ],
     },

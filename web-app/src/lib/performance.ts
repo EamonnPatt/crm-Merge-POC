@@ -1,5 +1,5 @@
-import { repActuals, type Budget } from "../data/mockData";
-import { CURRENT_MONTH, FISCAL_YEAR, MONTHS, businessDaysInMonth, currentMonthDays } from "./calendar";
+import { budgetValues, grossProfit, repActuals, type Budget, type Metric, type SalesOrder } from "../data/mockData";
+import { AS_OF_ISO, CURRENT_MONTH, FISCAL_YEAR, MONTHS, type BusinessCalendar } from "./calendar";
 
 export type PeriodType = "daily" | "monthly" | "quarterly" | "annual";
 
@@ -10,7 +10,14 @@ export const periods: { key: PeriodType; label: string; toDate: string }[] = [
   { key: "annual", label: "Annual", toDate: "Year to date" },
 ];
 
-/** Raw GP$ figures for one or more Account Managers over a period, as of the demo date. */
+/** Everything a performance figure depends on that users can change: budgets, the metric shown, and business days. */
+export interface PerfInputs {
+  budgets: Budget[];
+  metric: Metric;
+  calendar: BusinessCalendar;
+}
+
+/** Raw figures (GP$ or Sales$) for one or more Account Managers over a period, as of the demo date. */
 export interface Performance {
   actual: number;
   /** Full-period budget. */
@@ -33,7 +40,7 @@ export interface PerformanceMetrics extends Performance {
   /** Positive = ahead of budget pace, negative = behind. */
   daysAheadBehind: number;
   remainingDays: number;
-  /** GP$ needed per remaining business day to finish the period on budget. */
+  /** Amount needed per remaining business day to finish the period on budget. */
   requiredPerDay: number;
 }
 
@@ -42,14 +49,13 @@ export type PaceStatus = "ahead" | "on_pace" | "behind";
 const sum = (values: number[]) => values.reduce((acc, v) => acc + v, 0);
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
-export function monthlyBudgetFor(budgets: Budget[], rep: string, fiscalYear = FISCAL_YEAR): number[] {
-  return budgets.find((b) => b.rep === rep && b.fiscalYear === fiscalYear)?.monthly ?? Array(12).fill(0);
+export function monthlyBudgetFor(budgets: Budget[], rep: string, metric: Metric, fiscalYear = FISCAL_YEAR): number[] {
+  return budgetValues(budgets.find((b) => b.rep === rep && b.fiscalYear === fiscalYear), metric) ?? Array(12).fill(0);
 }
 
-function actualsFor(rep: string) {
+function actualsFor(rep: string, metric: Metric) {
   return (
-    repActuals.find((r) => r.rep === rep) ?? {
-      rep,
+    repActuals.find((r) => r.rep === rep)?.[metric] ?? {
       monthlyActual: MONTHS.map((_, m) => (m > CURRENT_MONTH ? null : 0)),
       monthlyLy: Array(12).fill(0),
       todayActual: 0,
@@ -67,24 +73,25 @@ function periodMonths(period: PeriodType): { first: number; last: number } {
   return { first: CURRENT_MONTH, last: CURRENT_MONTH };
 }
 
-function periodDays(period: PeriodType): { elapsedDays: number; totalDays: number } {
+function periodDays(period: PeriodType, calendar: BusinessCalendar): { elapsedDays: number; totalDays: number } {
   if (period === "daily") return { elapsedDays: 1, totalDays: 1 };
   const { first, last } = periodMonths(period);
-  const days = (m: number) => businessDaysInMonth(FISCAL_YEAR, m);
+  const days = (m: number) => calendar.monthly[m];
   return {
-    elapsedDays: sum(range(first, CURRENT_MONTH - 1).map(days)) + currentMonthDays.elapsed,
+    elapsedDays: sum(range(first, CURRENT_MONTH - 1).map(days)) + calendar.elapsedThisMonth,
     totalDays: sum(range(first, last).map(days)),
   };
 }
 
-export function repPerformance(rep: string, period: PeriodType, budgets: Budget[]): Performance {
-  const budget = monthlyBudgetFor(budgets, rep);
-  const { monthlyActual, monthlyLy, todayActual, todayLy } = actualsFor(rep);
-  const mtdShare = currentMonthDays.elapsed / currentMonthDays.total;
-  const dailyBudgetRate = budget[CURRENT_MONTH] / currentMonthDays.total;
+export function repPerformance(rep: string, period: PeriodType, { budgets, metric, calendar }: PerfInputs): Performance {
+  const budget = monthlyBudgetFor(budgets, rep, metric);
+  const { monthlyActual, monthlyLy, todayActual, todayLy } = actualsFor(rep, metric);
+  const monthDays = calendar.monthly[CURRENT_MONTH];
+  const mtdShare = monthDays === 0 ? 1 : calendar.elapsedThisMonth / monthDays;
+  const dailyBudgetRate = monthDays === 0 ? 0 : budget[CURRENT_MONTH] / monthDays;
 
   if (period === "daily") {
-    return { actual: todayActual, budget: dailyBudgetRate, budgetToDate: dailyBudgetRate, ly: todayLy, dailyBudgetRate, ...periodDays(period) };
+    return { actual: todayActual, budget: dailyBudgetRate, budgetToDate: dailyBudgetRate, ly: todayLy, dailyBudgetRate, ...periodDays(period, calendar) };
   }
 
   const { first, last } = periodMonths(period);
@@ -95,20 +102,20 @@ export function repPerformance(rep: string, period: PeriodType, budgets: Budget[
     budgetToDate: sum(completed.map((m) => budget[m])) + budget[CURRENT_MONTH] * mtdShare,
     ly: sum(completed.map((m) => monthlyLy[m])) + monthlyLy[CURRENT_MONTH] * mtdShare,
     dailyBudgetRate,
-    ...periodDays(period),
+    ...periodDays(period, calendar),
   };
 }
 
 /** Combined performance for several Account Managers (e.g. the whole company). */
-export function combinedPerformance(reps: string[], period: PeriodType, budgets: Budget[]): Performance {
-  const rows = reps.map((rep) => repPerformance(rep, period, budgets));
+export function combinedPerformance(reps: string[], period: PeriodType, inputs: PerfInputs): Performance {
+  const rows = reps.map((rep) => repPerformance(rep, period, inputs));
   return {
     actual: sum(rows.map((r) => r.actual)),
     budget: sum(rows.map((r) => r.budget)),
     budgetToDate: sum(rows.map((r) => r.budgetToDate)),
     ly: sum(rows.map((r) => r.ly)),
     dailyBudgetRate: sum(rows.map((r) => r.dailyBudgetRate)),
-    ...periodDays(period),
+    ...periodDays(period, inputs.calendar),
   };
 }
 
@@ -155,14 +162,39 @@ export function formatPct(pct: number, signed = false): string {
 }
 
 /** Month-by-month actual vs budget vs LY for the fiscal year, summed across the given reps. */
-export function monthlySeries(reps: string[], budgets: Budget[]) {
+export function monthlySeries(reps: string[], { budgets, metric }: PerfInputs) {
   return MONTHS.map((month, m) => {
-    const actuals = reps.map((rep) => actualsFor(rep));
+    const actuals = reps.map((rep) => actualsFor(rep, metric));
     return {
       month: m === CURRENT_MONTH ? `${month} (MTD)` : month,
       actual: m > CURRENT_MONTH ? null : sum(actuals.map((a) => a.monthlyActual[m] ?? 0)),
-      budget: sum(reps.map((rep) => monthlyBudgetFor(budgets, rep)[m])),
+      budget: sum(reps.map((rep) => monthlyBudgetFor(budgets, rep, metric)[m])),
       ly: sum(actuals.map((a) => a.monthlyLy[m])),
     };
   });
+}
+
+/** Orders dated within the selected period, up to the demo date. Their totals tie out to repPerformance. */
+export function ordersInPeriod(orders: SalesOrder[], period: PeriodType): SalesOrder[] {
+  if (period === "daily") return orders.filter((o) => o.date === AS_OF_ISO);
+  const { first } = periodMonths(period);
+  return orders.filter((o) => {
+    const [y, m] = o.date.split("-").map(Number);
+    return y === FISCAL_YEAR && m - 1 >= first && m - 1 <= CURRENT_MONTH && o.date <= AS_OF_ISO;
+  });
+}
+
+export interface OrderTotals {
+  orders: number;
+  sales: number;
+  cost: number;
+  gp: number;
+  margin: number;
+}
+
+export function orderTotals(orders: SalesOrder[]): OrderTotals {
+  const sales = sum(orders.map((o) => o.amount));
+  const cost = sum(orders.map((o) => o.cost));
+  const gp = sum(orders.map(grossProfit));
+  return { orders: orders.length, sales, cost, gp, margin: sales === 0 ? 0 : (gp / sales) * 100 };
 }

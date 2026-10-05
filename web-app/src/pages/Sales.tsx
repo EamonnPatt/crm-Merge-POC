@@ -6,14 +6,27 @@ import { Card, PageHeader, Badge, Button, SegmentedControl, currency, inlineSele
 import { CsvImportButton } from "../components/CsvImportButton";
 import { RestrictedNotice } from "../components/RestrictedNotice";
 import { ShareDashboardModal } from "../components/ShareDashboardModal";
-import { PaceCard, PerformanceStatCards, PerformanceTrendChart, signedCurrency } from "../components/performance";
+import {
+  ComparisonViews,
+  MetricSwitch,
+  PaceCard,
+  PerformanceStatCards,
+  PerformanceTrendChart,
+  ShareDonut,
+  SplitBar,
+  signedCurrency,
+  type ShareSlice,
+} from "../components/performance";
 import { downloadCsv } from "../lib/csv";
+import { OTHER_COLOR, SERIES_COLORS } from "../lib/palette";
 import { AS_OF_LABEL } from "../lib/calendar";
 import {
   combinedPerformance,
   formatDays,
   formatPct,
   monthlySeries,
+  orderTotals,
+  ordersInPeriod,
   paceLabel,
   paceStatus,
   paceTone,
@@ -22,9 +35,10 @@ import {
   withMetrics,
   type PeriodType,
 } from "../lib/performance";
+import { useMetricPreference } from "../lib/usePreference";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
-import { salesOrders, grossProfit, marginPct, type SalesOrder } from "../data/mockData";
+import { salesOrders, grossProfit, marginPct, metricLabel, type Metric, type SalesOrder } from "../data/mockData";
 
 const statusTone: Record<SalesOrder["status"], "emerald" | "amber" | "rose"> = {
   paid: "emerald",
@@ -32,12 +46,17 @@ const statusTone: Record<SalesOrder["status"], "emerald" | "amber" | "rose"> = {
   overdue: "rose",
 };
 
+const ORDER_PAGE = 25;
+const metricOf = (o: SalesOrder, metric: Metric) => (metric === "gp" ? grossProfit(o) : o.amount);
+
 export default function Sales() {
   const { profile, visibleReps, canViewSalesDashboard, canViewCompanyMetrics, canShareDashboard } = useRole();
-  const { budgets, shares, team } = useDemoData();
+  const { shares, team, perfInputs } = useDemoData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [period, setPeriod] = useState<PeriodType>("monthly");
+  const [metric, setMetric] = useMetricPreference();
   const [shareOpen, setShareOpen] = useState(false);
+  const [showAllOrders, setShowAllOrders] = useState(false);
 
   if (!canViewSalesDashboard) {
     return (
@@ -76,22 +95,49 @@ export default function Sales() {
     );
   }
 
-  const metrics = withMetrics(combinedPerformance(scopeReps, period, budgets));
-  const series = monthlySeries(scopeReps, budgets);
-  const repRows = isCompanyView
-    ? visibleReps.map((rep) => ({ rep, ...withMetrics(repPerformance(rep, period, budgets)) }))
-    : [];
-  const visibleOrders = salesOrders.filter((o) => scopeReps.includes(o.rep));
-  const orderTotals = visibleOrders.reduce(
-    (acc, o) => ({ sales: acc.sales + o.amount, cost: acc.cost + o.cost, gp: acc.gp + grossProfit(o) }),
-    { sales: 0, cost: 0, gp: 0 }
-  );
-  const blendedMargin = orderTotals.sales === 0 ? 0 : (orderTotals.gp / orderTotals.sales) * 100;
+  const inputs = perfInputs(metric);
+  const label = metricLabel[metric];
+  const toDate = periods.find((p) => p.key === period)?.toDate ?? "";
+  const metrics = withMetrics(combinedPerformance(scopeReps, period, inputs));
+  const mtd = withMetrics(combinedPerformance(scopeReps, "monthly", inputs));
+  const ytd = withMetrics(combinedPerformance(scopeReps, "annual", inputs));
+  const series = monthlySeries(scopeReps, inputs);
+  const repRows = isCompanyView ? visibleReps.map((rep) => ({ rep, ...withMetrics(repPerformance(rep, period, inputs)) })) : [];
+
+  // Orders are generated from the same figures as the performance cards, so these totals tie out exactly.
+  const scopeOrders = salesOrders.filter((o) => scopeReps.includes(o.rep));
+  const periodOrders = ordersInPeriod(scopeOrders, period);
+  const totals = orderTotals(periodOrders);
+  const shownOrders = showAllOrders ? periodOrders : periodOrders.slice(0, ORDER_PAGE);
+
+  // Colors follow the entity (fixed Account Manager / customer order), never the slice's rank.
+  const allAms = team.filter((m) => m.role === "account_manager").map((m) => m.name);
+  const sumFor = (orders: SalesOrder[]) => orders.reduce((a, o) => a + metricOf(o, metric), 0);
+  let slices: ShareSlice[];
+  if (isCompanyView) {
+    slices = visibleReps.map((rep) => ({
+      name: rep,
+      value: sumFor(periodOrders.filter((o) => o.rep === rep)),
+      color: SERIES_COLORS[allAms.indexOf(rep) % SERIES_COLORS.length],
+    }));
+  } else {
+    const customers = [...new Set(scopeOrders.map((o) => o.customer))].sort();
+    const byCustomer = customers.map((c, i) => ({ name: c, value: sumFor(periodOrders.filter((o) => o.customer === c)), color: SERIES_COLORS[i % SERIES_COLORS.length] }));
+    const top = [...byCustomer].sort((a, b) => b.value - a.value).slice(0, 5);
+    const rest = byCustomer.filter((c) => !top.includes(c));
+    slices = byCustomer.filter((c) => top.includes(c));
+    if (rest.length) slices.push({ name: "Other customers", value: rest.reduce((a, c) => a + c.value, 0), color: OTHER_COLOR });
+  }
+  const sourceParts: ShareSlice[] = [
+    { name: "ASI SmartBooks", value: sumFor(periodOrders.filter((o) => o.source === "ASI SmartBooks")), color: SERIES_COLORS[0] },
+    { name: "Facilis Syncore", value: sumFor(periodOrders.filter((o) => o.source === "Facilis Syncore")), color: SERIES_COLORS[1] },
+  ];
+
   const myShareCount = shares.filter((s) => s.owner === profile.name).length;
   const assistantShare = isAssistant ? shares.find((s) => s.owner === selectedRep && s.assistant === profile.name) : undefined;
 
   const description = isCompanyView
-    ? "Company-wide GP$ performance across all Account Managers, compared against Budget, Last Year, and daily pace."
+    ? `Company-wide ${label} performance across all Account Managers, compared against Budget, Last Year, and daily pace.`
     : isAssistant
     ? `${selectedRep}'s Sales Dashboard, shared with you (read-only).`
     : canViewCompanyMetrics
@@ -116,7 +162,7 @@ export default function Sales() {
               onClick={() =>
                 downloadCsv(
                   `sales-orders-${selectedRep ?? "company"}-${period}.csv`,
-                  visibleOrders.map((o) => ({
+                  periodOrders.map((o) => ({
                     order: o.id,
                     customer: o.customer,
                     rep: o.rep,
@@ -147,13 +193,9 @@ export default function Sales() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SegmentedControl options={periods} value={period} onChange={setPeriod} />
+        <MetricSwitch value={metric} onChange={setMetric} />
         {(canViewCompanyMetrics || (isAssistant && visibleReps.length > 1)) && (
-          <select
-            aria-label="Account Manager"
-            value={selectedRep ?? ""}
-            onChange={(e) => selectRep(e.target.value || null)}
-            className={inlineSelectClass}
-          >
+          <select aria-label="Account Manager" value={selectedRep ?? ""} onChange={(e) => selectRep(e.target.value || null)} className={inlineSelectClass}>
             {canViewCompanyMetrics && <option value="">All Account Managers (company-wide)</option>}
             {visibleReps.map((rep) => (
               <option key={rep} value={rep}>
@@ -170,40 +212,71 @@ export default function Sales() {
         <span className="ml-auto text-xs text-slate-400">Figures as of {AS_OF_LABEL}</span>
       </div>
 
-      <PerformanceStatCards metrics={metrics} period={period} />
+      <PerformanceStatCards metrics={metrics} period={period} metric={metric} />
+
+      <Card className="mt-4 p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">Total Sale, Total Cost, GP and Margin — {toDate}</h3>
+          <span className="text-xs text-slate-400">
+            {totals.orders} order{totals.orders === 1 ? "" : "s"} from ASI SmartBooks + Facilis Syncore
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[
+            { label: "Total Sale", value: currency(totals.sales), testId: "total-sale" },
+            { label: "Total Cost", value: currency(totals.cost), testId: "total-cost" },
+            { label: "Gross Profit", value: currency(totals.gp), testId: "total-gp" },
+            { label: "Margin %", value: `${totals.margin.toFixed(1)}%`, testId: "total-margin" },
+          ].map((t) => (
+            <div key={t.label}>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t.label}</p>
+              <p className="mt-1 text-lg font-semibold text-slate-800" data-testid={t.testId}>
+                {t.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <PerformanceTrendChart
           data={series}
+          metric={metric}
           className="lg:col-span-2"
-          title={isCompanyView ? "Company GP$ vs Budget vs Last Year" : `${selectedRep} — GP$ vs Budget vs Last Year`}
+          title={isCompanyView ? `Company ${label} vs Budget vs Last Year` : `${selectedRep} — ${label} vs Budget vs Last Year`}
         />
         <PaceCard metrics={metrics} period={period} />
+      </div>
+
+      <div className="mt-6">
+        <ComparisonViews selected={metrics} period={period} mtd={mtd} ytd={ytd} metric={metric} />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <ShareDonut
+          className="lg:col-span-2"
+          title={isCompanyView ? `${label} Share by Account Manager` : `${label} Share by Customer`}
+          subtitle={toDate}
+          slices={slices}
+        />
+        <SplitBar title={`${label} by Source System`} subtitle={toDate} parts={sourceParts} />
       </div>
 
       {isCompanyView && (
         <Card className="mt-6 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5">
             <h3 className="text-sm font-semibold text-slate-700">Account Manager Comparison</h3>
-            <span className="text-xs text-slate-400">
-              {periods.find((p) => p.key === period)?.toDate} · select a row to open that Account Manager's dashboard
-            </span>
+            <span className="text-xs text-slate-400">{toDate} · select a row to open that Account Manager's dashboard</span>
           </div>
           <div className="px-5 pt-4">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={repRows} margin={{ left: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="rep" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 12, fill: "#64748b" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `$${Math.round(Number(v) / 1000)}k`}
-                  width={48}
-                />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(Number(v) / 1000)}k`} width={48} />
                 <Tooltip formatter={(value) => currency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="actual" name="Actual GP$" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actual" name={`Actual ${label}`} fill="#4f46e5" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="budgetToDate" name="Budget (to date)" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="ly" name="Last Year (same period)" fill="#fbbf24" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -214,7 +287,7 @@ export default function Sales() {
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3 font-medium">Account Manager</th>
-                  <th className="px-5 py-3 font-medium">Actual GP$</th>
+                  <th className="px-5 py-3 font-medium">Actual {label}</th>
                   <th className="px-5 py-3 font-medium">Budget</th>
                   <th className="px-5 py-3 font-medium">% of Budget</th>
                   <th className="px-5 py-3 font-medium">vs Budget (to date)</th>
@@ -238,9 +311,7 @@ export default function Sales() {
                         {noBudget ? "—" : signedCurrency(r.actual - r.budgetToDate)}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{currency(r.ly)}</td>
-                      <td className={`px-5 py-3 font-medium ${r.vsLyPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                        {formatPct(r.vsLyPct, true)}
-                      </td>
+                      <td className={`px-5 py-3 font-medium ${r.vsLyPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatPct(r.vsLyPct, true)}</td>
                       <td className="px-5 py-3">
                         {noBudget ? (
                           <Badge tone="amber">No budget set</Badge>
@@ -263,33 +334,14 @@ export default function Sales() {
         </Card>
       )}
 
-      <Card className="mt-6 p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-700">Data Integration Summary — Total Sales, Cost, Gross Profit, Margin</h3>
-          <span className="text-xs text-slate-400">Mapped from ASI SmartBooks + Facilis Syncore exports</span>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Sales</p>
-            <p className="mt-1 text-lg font-semibold text-slate-800">{currency(orderTotals.sales)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total Cost</p>
-            <p className="mt-1 text-lg font-semibold text-slate-800">{currency(orderTotals.cost)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Gross Profit</p>
-            <p className="mt-1 text-lg font-semibold text-slate-800">{currency(orderTotals.gp)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Margin</p>
-            <p className="mt-1 text-lg font-semibold text-slate-800">{blendedMargin.toFixed(1)}%</p>
-          </div>
-        </div>
-      </Card>
-
       <Card className="mt-6 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5">
+          <h3 className="text-sm font-semibold text-slate-700">Orders — {toDate}</h3>
+          <span className="text-xs text-slate-400">
+            {periodOrders.length > ORDER_PAGE && !showAllOrders ? `Latest ${ORDER_PAGE} of ${periodOrders.length}` : `${periodOrders.length} orders`}
+          </span>
+        </div>
+        <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -306,7 +358,7 @@ export default function Sales() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {visibleOrders.map((order) => (
+              {shownOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800">{order.id}</td>
                   <td className="px-5 py-3 text-slate-600">{order.customer}</td>
@@ -317,25 +369,44 @@ export default function Sales() {
                   <td className="px-5 py-3 text-slate-600">{currency(grossProfit(order))}</td>
                   <td className="px-5 py-3 text-slate-600">{marginPct(order).toFixed(1)}%</td>
                   <td className="px-5 py-3">
-                    <Badge tone={statusTone[order.status]}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </Badge>
+                    <Badge tone={statusTone[order.status]}>{order.status.charAt(0).toUpperCase() + order.status.slice(1)}</Badge>
                   </td>
                   <td className="px-5 py-3">
                     <Badge tone={order.source === "ASI SmartBooks" ? "sky" : "violet"}>{order.source}</Badge>
                   </td>
                 </tr>
               ))}
-              {visibleOrders.length === 0 && (
+              {periodOrders.length === 0 && (
                 <tr>
                   <td colSpan={10} className="px-5 py-8 text-center text-sm text-slate-400">
-                    No orders in this view yet.
+                    No orders in this period yet.
                   </td>
                 </tr>
               )}
             </tbody>
+            {periodOrders.length > 0 && (
+              <tfoot className="bg-slate-50 text-sm font-semibold text-slate-800">
+                <tr>
+                  <td className="px-5 py-3" colSpan={4}>
+                    Period total ({periodOrders.length} orders)
+                  </td>
+                  <td className="px-5 py-3">{currency(totals.sales)}</td>
+                  <td className="px-5 py-3">{currency(totals.cost)}</td>
+                  <td className="px-5 py-3">{currency(totals.gp)}</td>
+                  <td className="px-5 py-3">{totals.margin.toFixed(1)}%</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
+        {periodOrders.length > ORDER_PAGE && (
+          <div className="border-t border-slate-100 px-5 py-3 text-center">
+            <button className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setShowAllOrders((v) => !v)}>
+              {showAllOrders ? "Show latest 25 only" : `Show all ${periodOrders.length} orders`}
+            </button>
+          </div>
+        )}
       </Card>
 
       {canShareDashboard && <ShareDashboardModal open={shareOpen} onClose={() => setShareOpen(false)} />}

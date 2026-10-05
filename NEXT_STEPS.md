@@ -1,8 +1,8 @@
 # Add-Impact Sales Platform: Next Steps & Missing Components
 
-_Last updated: 2026-09-21. Tracks everything still open against the client's requirements doc, `notes.txt`, and the data-integration plan._
+_Last updated: 2026-10-05. Tracks everything still open against the client's requirements doc, `notes.txt`, and the data-integration plan._
 
-**Where things stand:** the web app in `web-app/` is a clickable **demo** that runs on dummy data (no database yet). Five roles work (Management, Super User, Account Manager, Assistant, CSR). So do budgets, dashboard sharing, account and user creation, the audit trail, and LY / Budget / days-ahead-behind comparisons. What's left falls into four groups:
+**Where things stand:** the web app in `web-app/` is a clickable **demo** that runs on dummy data (no database yet). Five roles work (Management, Super User, Account Manager, Assistant, CSR). So do budgets, dashboard sharing, account and user creation, the audit trail, and LY / Budget / days-ahead-behind comparisons. As of 2026-10-05, every Section 3 demo gap is built except the items waiting on client input (marked _Blocked_). What's left falls into four groups:
 
 1. [Inputs we're waiting on](#1-inputs-were-waiting-on): things the client or vendors must send us
 2. [Decisions needed](#2-decisions-needed): questions only the client can answer
@@ -53,55 +53,55 @@ These can all be built now with dummy data. File paths are relative to the repo 
 
 Requirements doc §3. Needs I-1 so the columns match the real spreadsheet.
 
-- [ ] **Link the spreadsheet.** The "Open Linked Spreadsheet" button currently does nothing. Make the URL configurable in Settings (Management / Super User only). Files: `web-app/src/pages/OrderExcellence.tsx`, `web-app/src/pages/Settings.tsx`
-- [ ] **Embed option:** an "Embedded sheet" tab using an iframe (Google Sheets / Excel Online publish link)
-- [ ] **Import option:** CSV/XLSX import that maps the spreadsheet's columns into the tracker, with a preview before saving
-- [ ] **CSRs can log and update issues.** The "Log Issue" button currently does nothing, and statuses can't be edited. Add log/edit forms (status, severity, notes, assignee) and save them in the demo data store
-- [ ] **Proof of the daily update:** a "Last updated by K. Sanders, today 5:40 PM" stamp, plus a warning when nothing has been updated in over 24 hours
-- [ ] **Audit trail:** log every order-issue change. Management's "record audit" requirement depends on this. File: `web-app/src/context/DemoDataContext.tsx`
-- [ ] Rebuild the table columns around the real spreadsheet (the current ones are guesses)
+- [x] **Link the spreadsheet.** Settings → Order Excellence Spreadsheet (Management / Super User) holds the link. The button opens it; when none is set, Management sees "Link Spreadsheet" instead. Files: `web-app/src/pages/OrderExcellence.tsx`, `web-app/src/pages/Settings.tsx`
+- [x] **Embed option:** the "Embedded sheet" tab shows the published embed link from Settings in an iframe (http/https links only)
+- [x] **Import option:** CSV/XLSX import with automatic column matching, an editable mapping, and a row-by-row preview (bad rows are flagged and skipped). Rows with an existing Issue ID update that issue; other rows are added
+- [x] **CSRs can log and update issues.** Log Issue and Edit forms (order, customer, Account Manager filled in from the customer, type, severity, status, assignee, in-hand date, notes), plus a status dropdown on each row. Saved in the demo data store
+- [x] **Proof of the daily update:** a "Last updated by K. Sanders, yesterday 5:40 PM" banner (also on the CSR home page), an amber warning after 24 hours without an update, and a bell notification
+- [x] **Audit trail:** every issue creation, field change, and import is logged with before → after details. File: `web-app/src/context/DemoDataContext.tsx`
+- [ ] _Blocked on I-1:_ rebuild the table columns around the real spreadsheet. The current columns (now including in-hand date, notes, and last update) are still guesses
 
 ### D-2 Project Tracker / CPR Sales Plan (P1)
 
 Requirements doc §2.
 
-- [ ] **Working Add / Edit project form.** "Add Project" currently does nothing. File: `web-app/src/pages/ProjectTracker.tsx`
-- [ ] Add a **Month** field (the doc asks for Month; the demo shows "Date Entered"). File: `web-app/src/data/mockData.ts` (`ProjectTrackerEntry`)
-- [ ] **Multiple clickable links** per project (file, quote, order, supporting doc), each with a label. Today there's one link and it's display-only
-- [ ] **Move Project Tracker under the CPR menu section.** The doc calls this section "CPR", but it sits under "Management" today. File: `web-app/src/layout/Sidebar.tsx`
-- [ ] Apply the Q-7 decision: Account Managers see and edit their own entries. File: `web-app/src/context/RoleContext.tsx` (`canViewProjectTracker`)
-- [ ] Filter by Account Manager, status, and month; show total target value per status
+- [x] **Working Add / Edit project form**, recorded in the audit trail. Target value accepts shorthand like 65k. File: `web-app/src/pages/ProjectTracker.tsx`
+- [x] A **Month** field replaces "Date Entered". Who last updated the entry, and when, shows under the account name. File: `web-app/src/data/mockData.ts` (`ProjectTrackerEntry`)
+- [x] **Multiple clickable links** per project, each with a label. Only http(s) links are accepted
+- [x] **Moved Project Tracker under the CPR menu section.** File: `web-app/src/layout/Sidebar.tsx`
+- [x] Q-7 applied with our recommendation: Account Managers see and edit their own entries (on by default). Until the client confirms, it's a switch in Settings → Pending Client Decisions, and the access matrix follows it. File: `web-app/src/context/RoleContext.tsx` (`canViewProjectTracker`)
+- [x] Filters by Account Manager, status, and month. Clickable status tiles show the count and total target value per status
 
 ### D-3 Sales Dashboard (P1)
 
 Requirements doc §1.
 
-- [ ] **(a) Add a pie chart.** The doc asks for "bar graphs / pie charts", and none exists (the only one was removed last round). Suggested: GP share by Account Manager (Management view) and sales by source system. Files: `web-app/src/pages/Sales.tsx`, `web-app/src/components/performance.tsx`
-- [ ] **(b) Holiday-aware business days**, with a Management-editable "business days per month" row on the Budgets page. The doc says "review total business days per month." Today every Mon–Fri counts, so September shows 22 business days instead of 21 (Labor Day). File: `web-app/src/lib/calendar.ts` (`businessDaysInMonth`)
-- [ ] **(c) Show Total Sale, Total Cost, GP and Margin % for the selected period.** These are the four metrics named in the Information Export section. Today they only appear in a small summary card built from 8 sample orders
-- [ ] **(d) Make the numbers tie out.** For M. Alvarez, the summary card shows $6,220 GP while the stat cards show $11,210 GP month-to-date, and the summary ignores the Daily / Monthly / Quarterly / Annual selector. Generate the sample orders from the same data as the performance figures
-- [ ] **(e) Sales $ / GP $ switch** on the dashboard and on budgets, pending Q-1
-- [ ] **(f) Label the comparison views** to match the doc's wording: "Sales vs Budget", "Sales vs MTD", "Sales vs YTD"
+- [x] **(a) Pie chart:** a donut of GP$ / Sales$ share by Account Manager (company view) or by customer (one Account Manager). Source systems get a labelled split bar instead, since a 2-slice pie reads poorly. The colors pass a color-blindness check, and every slice is also listed with its value and %. The doc asks for "bar graphs / pie charts", and none exists (the only one was removed last round). Suggested: GP share by Account Manager (Management view) and sales by source system. Files: `web-app/src/pages/Sales.tsx`, `web-app/src/components/performance.tsx`
+- [x] **(b) Holiday-aware business days** (a placeholder US holiday list until I-10 arrives). Management can edit a Business days row on the Budgets page; overrides can be reset and are audit-logged. September now shows 21., with a Management-editable "business days per month" row on the Budgets page. The doc says "review total business days per month." Today every Mon–Fri counts, so September shows 22 business days instead of 21 (Labor Day). File: `web-app/src/lib/calendar.ts` (`businessDaysInMonth`)
+- [x] **(c) Total Sale, Total Cost, GP and Margin % for the selected period**, with matching period totals under the orders table. These are the four metrics named in the Information Export section. Today they only appear in a small summary card built from 8 sample orders
+- [x] **(d) The numbers tie out:** sample orders are generated from the same actuals, so order totals equal the stat cards for every Account Manager, period, and metric (checked for Daily / Monthly / Quarterly / Annual × GP$ / Sales$). For M. Alvarez, the summary card shows $6,220 GP while the stat cards show $11,210 GP month-to-date, and the summary ignores the Daily / Monthly / Quarterly / Annual selector. Generate the sample orders from the same data as the performance figures
+- [x] **(e) Sales $ / GP $ switch** on the Dashboard, Sales Dashboard, and Budgets. GP $ is the default, and a budget can hold either or both. The default may change once Q-1 is answered
+- [x] **(f) Comparison Views** card, labelled to match the doc's wording: "Sales vs Budget", "Sales vs MTD", "Sales vs YTD"
 
 ### D-4 Budget entry flexibility (P2)
 
 The doc asks for a "free-flow text or flexible entry field."
 
-- [ ] Accept shorthand like `15k`, `$15,000`, `1.2m` (today the inline editor turns "15k" into 15, and the New Budget form rejects it). File: `web-app/src/pages/Budgets.tsx`
-- [ ] Add a **notes / comments** field per budget
-- [ ] Allow **quarterly** entry (enter Q1–Q4, spread across months) in addition to annual and monthly
-- [ ] Optional: bulk import budgets from a spreadsheet
+- [x] Accept shorthand like `15k`, `$15,000`, `1.2m`. Entries it can't read are highlighted and block Save (today the inline editor turns "15k" into 15, and the New Budget form rejects it). File: `web-app/src/pages/Budgets.tsx`
+- [x] A **notes / comments** field per budget, also shown to the Account Manager on My Budget
+- [x] **Quarterly** entry (enter Q1–Q4, spread across the months seasonally or evenly) alongside annual and monthly
+- [x] Bulk import of budgets from CSV/XLSX, in the same layout as Export. Rows with only an annual total are spread seasonally
 
 ### D-5 Other buttons that don't do anything yet (P3)
 
 Not in the requirements doc, but visible in the demo and likely to be clicked:
 
-- [ ] "Add Prospect", "Add Deal", "Add Partner" buttons. Files: `Prospects.tsx`, `SalesPipeline.tsx`, `ReferralPartners.tsx`
-- [ ] Accounts page: weekly/monthly activity check marks and notes are display-only (the page text says Account Managers can log activity)
-- [ ] Reports page: the Excel / PDF buttons don't export
-- [ ] Settings: Notification and Access & Security toggles don't switch; "Configure" on the integration cards does nothing
-- [ ] Top bar: the search box and notification bell are decorative
-- [ ] Optional: apply the Add Impact logo and colors (currently a placeholder "Add-Impact CRM" brand)
+- [x] The "Add Prospect", "Add Deal", and "Add Partner" buttons work and are audit-logged. Files: `Prospects.tsx`, `SalesPipeline.tsx`, `ReferralPartners.tsx`
+- [x] Accounts page: the weekly/monthly activity marks toggle and notes can be edited (both audit-logged), plus a filter box
+- [x] Reports page: Excel downloads a real .xlsx file; PDF opens a print-ready page (save it with "Save as PDF"). Each of the 10 reports has real columns and is scoped by role
+- [x] Settings: the toggles switch (security toggles are Super User only and audit-logged). "Configure" opens the connection settings, with a demo-only Test connection button
+- [x] Top bar: search covers accounts, prospects, deals, order issues, and projects, limited to what the user may see. The bell shows live alerts: tracker not updated, high-severity issues, Account Managers behind pace, missing FY2027 budgets, and sync problems
+- [ ] _Blocked:_ apply the Add Impact logo and colors once we have them (currently a placeholder "Add-Impact CRM" brand)
 
 ---
 
@@ -163,7 +163,8 @@ Starts once the Section 2 decisions are made and the Section 1 access is granted
 
 ## 5. Housekeeping
 
-- [ ] **Commit** the `notes.txt` changes (uncommitted in the working tree), then redeploy the Render demo (`render.yaml`)
+- [x] ~~Commit the `notes.txt` changes~~ (done). Hosting has moved to cPanel Node (see `README.md`)
+- [ ] **Commit** the Section 3 work and redeploy on cPanel (`npm run build`, then restart)
 - [ ] **Update the client overview deck** (Google Slides). It says 4 access roles; there are now 5 (Assistant added), plus budgets and dashboard sharing
 - [ ] Send ASI the report spec (Appendix A) and Facilis the questions (I-6)
 - [ ] Optional cleanup: the original Flask CSV-merge prototype (`app.py`, `templates/`, `static/`, `sessions/`) is superseded by `web-app/`
