@@ -4,3 +4,8 @@ __pycache__/
 sessions/*
 !sessions/.gitkeep
 node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example

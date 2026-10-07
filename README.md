@@ -7,6 +7,8 @@ The web app lives in `web-app/` (React + Vite; see its README for development). 
 
 Requires Node 20.19+ (22 recommended). The server listens on `$PORT`, or 3000 if unset.
 
+The database lives in Supabase: schema, seed data and access rules are in `supabase/` (see its README). The web app has a typed client in `web-app/src/lib/supabase.ts`; copy `web-app/.env.example` to `web-app/.env.local` to use it. The screens still run on the in-browser demo data for now.
+
 The older Flask POC (`app.py`, `templates/`, `static/`) is not used by the Node app.
 
 ## Deploying on cPanel (Setup Node.js App)
