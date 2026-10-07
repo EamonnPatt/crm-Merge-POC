@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   auditLogSeed,
   budgetSeed,
   customerSeed,
   dashboardShareSeed,
+  dataSources as demoDataSources,
   metricLabel,
   orderIssueSeed,
   pipelineDealSeed,
@@ -11,17 +12,22 @@ import {
   projectTrackerSeed,
   prospectSeed,
   referralPartnerSeed,
+  repActuals as demoRepActuals,
+  salesOrders as demoSalesOrders,
   teamSeed,
   type AuditLogEntry,
   type Budget,
   type Customer,
   type DashboardShare,
+  type DataSourceInfo,
   type Metric,
   type OrderIssue,
   type PipelineDeal,
   type ProjectTrackerEntry,
   type Prospect,
   type ReferralPartner,
+  type RepActuals,
+  type SalesOrder,
   type Source,
   type TeamMember,
 } from "../data/mockData";
@@ -29,6 +35,10 @@ import { FISCAL_YEAR, MONTHS, businessCalendar, defaultBusinessDays, nowStamp, t
 import type { PerfInputs } from "../lib/performance";
 import { currency } from "../components/ui";
 import { roleLabel } from "../lib/roles";
+import { useAuth } from "./AuthContext";
+import { buildRepActuals } from "../lib/actuals";
+import { inviteUser as inviteRemote, loadData as loadRemoteData, loadSales, namesOf, saveChanges, type DataKey, type LoadedExtras } from "../data/remote";
+import { DataLoadScreen } from "../components/AuthScreens";
 
 /** Management's override of the holiday-aware business-day count per month. */
 export interface BusinessDaysOverride {
@@ -63,7 +73,7 @@ export interface DemoSettings {
  * Stand-in for the future database. Holds everything users can create or edit in the demo and
  * saves it to this browser's localStorage so changes survive a page refresh.
  */
-interface DemoData {
+export interface DemoData {
   budgets: Budget[];
   businessDays: BusinessDaysOverride[];
   accounts: Customer[];
@@ -94,6 +104,12 @@ export type AccountActivityPatch = Partial<Pick<Customer, "notes" | "weeklyActiv
 interface DemoDataContextValue extends DemoData {
   /** Business days per month for the current fiscal year, after overrides. */
   calendar: BusinessCalendar;
+  /** Orders the signed-in user may see, and the per-rep actual / last-year figures built from them. */
+  salesOrders: SalesOrder[];
+  repActuals: RepActuals[];
+  dataSources: DataSourceInfo[];
+  /** Saving state when running against Supabase (always idle in the offline demo). */
+  sync: { enabled: boolean; saving: boolean; error: string | null; dismissError: () => void };
   perfInputs: (metric: Metric) => PerfInputs;
   saveBudget: (input: { rep: string; fiscalYear: number; metric: Metric; monthly?: number[]; notes?: string }, actor: Actor) => void;
   importBudgets: (rows: { rep: string; fiscalYear: number; metric: Metric; monthly: number[] }[], fileName: string, actor: Actor) => void;
@@ -101,6 +117,11 @@ interface DemoDataContextValue extends DemoData {
   addAccount: (input: Omit<Customer, "id">, actor: Actor) => Customer;
   updateAccountActivity: (id: string, patch: AccountActivityPatch, actor: Actor) => void;
   addTeamMember: (input: Omit<TeamMember, "id">, actor: Actor) => TeamMember;
+  /**
+   * Creates an employee. Signed in, this adds them to the staff list and emails them an invite to set a password;
+   * in the offline demo it only adds the demo user. `userId` re-sends the invite for someone already listed.
+   */
+  inviteTeamMember: (input: { userId?: string; name: string; email: string; role: TeamMember["role"]; supports?: string[] }, actor: Actor) => Promise<void>;
   setDashboardShare: (owner: string, assistant: string, shared: boolean, actor: Actor) => void;
   saveOrderIssue: (input: OrderIssueInput, actor: Actor) => OrderIssue;
   importOrderIssues: (rows: OrderIssueInput[], fileName: string, actor: Actor) => { created: number; updated: number };
@@ -191,16 +212,112 @@ const issueStatusText: Record<OrderIssue["status"], string> = { open: "Open", in
 
 const DemoDataContext = createContext<DemoDataContextValue | null>(null);
 
+const emptyData = (): DemoData => ({
+  budgets: [],
+  businessDays: [],
+  accounts: [],
+  team: [],
+  shares: [],
+  orderIssues: [],
+  projects: [],
+  prospects: [],
+  deals: [],
+  partners: [],
+  settings: defaultSettings(),
+  auditLog: [],
+});
+
 export function DemoDataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<DemoData>(loadData);
+  const { status, appUserId } = useAuth();
+  // Signed in with a staff role: the data lives in Supabase. Otherwise this is the offline demo with its browser store.
+  const remote = status === "ready" && appUserId !== null;
+  const [data, setState] = useState<DemoData>(() => (remote ? emptyData() : loadData()));
+  const dataRef = useRef(data);
+  const [extras, setExtras] = useState<LoadedExtras>({ salesOrders: demoSalesOrders, dataSources: demoDataSources });
+  const [loaded, setLoaded] = useState(!remote);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [pending, setPending] = useState(0);
+  const pendingRef = useRef(0);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const touched = useRef(new Set<DataKey>());
+  const lastLoad = useRef(0);
 
   useEffect(() => {
+    if (remote) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // Private mode / storage blocked: the demo still works, it just won't persist.
     }
-  }, [data]);
+  }, [data, remote]);
+
+  const replace = (next: DemoData) => {
+    dataRef.current = next;
+    setState(next);
+  };
+
+  /** Re-reads from Supabase: everything, or just the collections that were written (to pick up database-assigned ids). */
+  const reload = async (keys?: Set<DataKey>) => {
+    const fresh = await loadRemoteData(defaultSettings(), keys);
+    replace({ ...dataRef.current, ...fresh });
+    if (!keys) setExtras(await loadSales(namesOf(fresh.team)));
+    lastLoad.current = Date.now();
+  };
+
+  useEffect(() => {
+    if (!remote) return;
+    let cancelled = false;
+    setLoaded(false);
+    setLoadError(null);
+    reload()
+      .then(() => !cancelled && setLoaded(true))
+      .catch((e: Error) => !cancelled && setLoadError(e.message));
+    const refresh = () => {
+      if (document.visibilityState === "visible" && pendingRef.current === 0 && Date.now() - lastLoad.current > 60_000) reload().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remote]);
+
+  /** Writes the difference to Supabase one change at a time. If anything is refused, the screen goes back to what the database holds. */
+  const enqueueSave = (prev: DemoData, next: DemoData) => {
+    pendingRef.current++;
+    setPending(pendingRef.current);
+    queue.current = queue.current.then(async () => {
+      let failed = false;
+      try {
+        for (const key of await saveChanges(prev, next, appUserId!)) touched.current.add(key);
+      } catch (e) {
+        failed = true;
+        setSyncError(e instanceof Error ? e.message : "Could not save your change.");
+      }
+      pendingRef.current--;
+      setPending(pendingRef.current);
+      if (pendingRef.current === 0) {
+        const keys = failed ? undefined : new Set(touched.current);
+        touched.current.clear();
+        try {
+          await reload(keys);
+        } catch {
+          // The next focus refresh will try again.
+        }
+      }
+    });
+  };
+
+  /** The screens' change function: updates what is shown straight away and, when signed in, saves the change. */
+  const setData = (update: DemoData | ((d: DemoData) => DemoData)) => {
+    const prev = dataRef.current;
+    const next = typeof update === "function" ? update(prev) : update;
+    if (next === prev) return;
+    replace(next);
+    if (remote) enqueueSave(prev, next);
+  };
 
   const log = (entries: AuditLogEntry[], actor: Actor, action: string, entity: string, details: string) => [
     { id: nextId("AL-", entries.map((e) => e.id)), timestamp: nowStamp(), user: actor.name, role: actor.label, action, entity, details },
@@ -208,12 +325,38 @@ export function DemoDataProvider({ children }: { children: ReactNode }) {
   ];
   const stamp = (actor: Actor) => ({ updatedBy: actor.name, updatedAt: nowStamp() });
 
+  const addTeamMemberLocal = (input: Omit<TeamMember, "id">, actor: Actor): TeamMember => {
+    const member: TeamMember = { ...input, id: nextId("U-", data.team.map((m) => m.id)) };
+    const supports = member.supports?.length ? ` Supports ${member.supports.join(", ")}.` : "";
+    setData((d) => ({
+      ...d,
+      team: [...d.team, member],
+      auditLog: log(d.auditLog, actor, "Created user", member.name, `New ${roleLabel[member.role]} user invited (${member.email}).${supports}`),
+    }));
+    return member;
+  };
+
   const calendar = businessCalendar(data.businessDays.find((o) => o.fiscalYear === FISCAL_YEAR)?.monthly);
+
+  const repActuals = useMemo(
+    () =>
+      remote
+        ? buildRepActuals(
+            extras.salesOrders,
+            data.team.filter((m) => m.role === "account_manager").map((m) => m.name),
+          )
+        : demoRepActuals,
+    [remote, extras.salesOrders, data.team],
+  );
 
   const value: DemoDataContextValue = {
     ...data,
     calendar,
-    perfInputs: (metric) => ({ budgets: data.budgets, metric, calendar }),
+    salesOrders: extras.salesOrders,
+    repActuals,
+    dataSources: extras.dataSources,
+    sync: { enabled: remote, saving: pending > 0, error: syncError, dismissError: () => setSyncError(null) },
+    perfInputs: (metric) => ({ budgets: data.budgets, metric, calendar, actuals: repActuals }),
 
     saveBudget: ({ rep, fiscalYear, metric, monthly, notes }, actor) =>
       setData((d) => {
@@ -316,15 +459,22 @@ export function DemoDataProvider({ children }: { children: ReactNode }) {
         };
       }),
 
-    addTeamMember: (input, actor) => {
-      const member: TeamMember = { ...input, id: nextId("U-", data.team.map((m) => m.id)) };
-      const supports = member.supports?.length ? ` Supports ${member.supports.join(", ")}.` : "";
-      setData((d) => ({
-        ...d,
-        team: [...d.team, member],
-        auditLog: log(d.auditLog, actor, "Created user", member.name, `New ${roleLabel[member.role]} user invited (${member.email}).${supports}`),
-      }));
-      return member;
+    addTeamMember: addTeamMemberLocal,
+
+    inviteTeamMember: async (input, actor) => {
+      if (!remote) {
+        addTeamMemberLocal({ name: input.name, email: input.email, role: input.role, supports: input.supports, status: "invited" }, actor);
+        return;
+      }
+      const names = namesOf(data.team);
+      await inviteRemote({
+        userId: input.userId,
+        name: input.name,
+        email: input.email,
+        role: input.role,
+        supports: input.supports?.map((am) => names.nameToId.get(am) ?? am),
+      });
+      await reload(new Set<DataKey>(["team", "auditLog"]));
     },
 
     setDashboardShare: (owner, assistant, shared, actor) =>
@@ -454,9 +604,12 @@ export function DemoDataProvider({ children }: { children: ReactNode }) {
 
     logActivity: (actor, action, entity, details) => setData((d) => ({ ...d, auditLog: log(d.auditLog, actor, action, entity, details) })),
 
-    resetDemoData: () => setData(seedData()),
+    resetDemoData: () => {
+      if (!remote) setData(seedData());
+    },
   };
 
+  if (remote && !loaded) return <DataLoadScreen error={loadError} />;
   return <DemoDataContext.Provider value={value}>{children}</DemoDataContext.Provider>;
 }
 

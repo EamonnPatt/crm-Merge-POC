@@ -4,13 +4,13 @@ import { Plug, Users, Bell, Shield, KeyRound, Check, Minus, UserPlus, FileSpread
 import { Card, PageHeader, Badge, Button, Field, Modal, Switch, inputClass } from "../components/ui";
 import { useRole } from "../context/RoleContext";
 import { useDemoData, type IntegrationConfig } from "../context/DemoDataContext";
-import { dataSources, accessLevelMatrix, type Source } from "../data/mockData";
+import { accessLevelMatrix, type Source } from "../data/mockData";
 import { roleLabel, roleOrder, roleTone, type Role } from "../lib/roles";
 import { isWebUrl } from "../lib/url";
 
 export default function Settings() {
   const { profile, canManageUsers, canConfigureSystem } = useRole();
-  const { team, shares, settings, updateSettings } = useDemoData();
+  const { team, shares, settings, updateSettings, dataSources, inviteTeamMember, sync } = useDemoData();
   const { hash } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
   const [configuring, setConfiguring] = useState<Source | null>(null);
@@ -194,7 +194,21 @@ export default function Settings() {
                       {member.role === "account_manager" && sharedWith.length > 0 && `Dashboard shared with ${sharedWith.join(", ")}`}
                     </td>
                     <td className="py-2.5 pr-4">
-                      <Badge tone={member.status === "active" ? "emerald" : "amber"}>{member.status === "active" ? "Active" : "Invited"}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge tone={member.status === "active" ? "emerald" : "amber"}>{member.status === "active" ? "Active" : "Invited"}</Badge>
+                        {sync.enabled && canManageUsers && member.status === "invited" && (member.role !== "super_user" || profile.role === "super_user") && (
+                          <button
+                            className="text-xs font-medium text-brand-600 hover:underline"
+                            onClick={() =>
+                              inviteTeamMember({ userId: member.id, name: member.name, email: member.email, role: member.role }, profile)
+                                .then(() => setNotice(`Invite sent to ${member.email}.`))
+                                .catch((e: Error) => setNotice(`Could not send the invite: ${e.message}`))
+                            }
+                          >
+                            Send invite
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -416,7 +430,8 @@ function IntegrationModal({ source, onClose }: { source: Source; onClose: () => 
 
 function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: (message: string) => void }) {
   const { profile } = useRole();
-  const { team, addTeamMember } = useDemoData();
+  const { team, inviteTeamMember, sync } = useDemoData();
+  const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("assistant");
@@ -427,25 +442,25 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const assignableRoles = roleOrder.filter((r) => r !== "super_user" || profile.role === "super_user");
   const accountManagers = team.filter((m) => m.role === "account_manager").map((m) => m.name);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name.trim()) return setError("Enter the person's name.");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
     if (team.some((m) => m.email.toLowerCase() === email.trim().toLowerCase())) return setError("A user with this email already exists.");
     if (role === "assistant" && supports.length === 0) return setError("Choose at least one Account Manager this assistant supports.");
-    const member = addTeamMember(
-      {
-        name: name.trim(),
-        email: email.trim(),
-        role,
-        supports: role === "assistant" ? supports : undefined,
-        status: "invited",
-      },
-      profile
-    );
+    setBusy(true);
+    setError(null);
+    try {
+      await inviteTeamMember({ name: name.trim(), email: email.trim(), role, supports: role === "assistant" ? supports : undefined }, profile);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create the user.");
+      setBusy(false);
+      return;
+    }
+    const emailed = sync.enabled ? ` An email invite to set a password was sent to ${email.trim()}.` : "";
     onCreated(
       role === "assistant"
-        ? `${member.name} invited as an Assistant to ${supports.join(", ")}. They'll see a Sales Dashboard once that Account Manager shares it.`
-        : `${member.name} invited as ${roleLabel[role]}.`
+        ? `${name.trim()} added as an Assistant to ${supports.join(", ")}. They'll see a Sales Dashboard once that Account Manager shares it.${emailed}`
+        : `${name.trim()} added as ${roleLabel[role]}.${emailed}`
     );
   };
 
@@ -454,13 +469,15 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       open
       onClose={onClose}
       title="Add User"
-      description="Create a login for a team member. They'll receive an email invite (once email delivery is connected)."
+      description={sync.enabled ? "Add a team member. They'll get an email invite to choose a password and sign in." : "Add a demo team member. (Sign in to Supabase to send real invites.)"}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Create User</Button>
+          <Button onClick={() => void submit()} disabled={busy}>
+            {busy ? "Creating…" : "Create User"}
+          </Button>
         </>
       }
     >

@@ -20,7 +20,7 @@ import {
   withMetrics,
   type PerformanceMetrics,
 } from "../lib/performance";
-import { pipelineStages, dataSources, metricLabel, type Metric, type OrderIssue } from "../data/mockData";
+import { pipelineStages, metricLabel, type Metric, type OrderIssue } from "../data/mockData";
 
 export default function Dashboard() {
   const { profile } = useRole();
@@ -105,6 +105,7 @@ function SalesHome() {
 }
 
 function DataSourceCard() {
+  const { dataSources } = useDemoData();
   return (
     <Card className="p-5">
       <h3 className="mb-4 text-sm font-semibold text-slate-700">Data Source Sync</h3>

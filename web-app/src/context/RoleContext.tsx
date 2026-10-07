@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useDemoData } from "./DemoDataContext";
+import { useAuth } from "./AuthContext";
 import { initialsOf, roleLabel, type Role } from "../lib/roles";
 
 export type { Role } from "../lib/roles";
@@ -16,7 +17,10 @@ export interface RoleProfile {
 
 interface RoleContextValue {
   profile: RoleProfile;
+  /** Demo only: switch who the app is shown as. Does nothing when signed in for real. */
   setUser: (userId: string) => void;
+  /** True when the user comes from a Supabase login rather than the demo "view as" switcher. */
+  signedIn: boolean;
   /** Account Managers whose sales performance this user may see (company-wide for Management). */
   visibleReps: string[];
   canViewCompanyMetrics: boolean;
@@ -45,7 +49,9 @@ const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { team, shares, settings } = useDemoData();
-  const [userId, setUserId] = useState<string>(() => {
+  const { appUserId } = useAuth();
+  const signedIn = appUserId !== null;
+  const [demoUserId, setUserId] = useState<string>(() => {
     try {
       return localStorage.getItem(USER_KEY) ?? DEFAULT_USER_ID;
     } catch {
@@ -53,13 +59,16 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const userId = appUserId ?? demoUserId;
+
   useEffect(() => {
+    if (signedIn) return;
     try {
       localStorage.setItem(USER_KEY, userId);
     } catch {
       // Storage blocked: the chosen user just won't be remembered.
     }
-  }, [userId]);
+  }, [userId, signedIn]);
 
   const member = team.find((m) => m.id === userId) ?? team.find((m) => m.id === DEFAULT_USER_ID) ?? team[0];
   const role = member.role;
@@ -84,7 +93,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const value: RoleContextValue = {
     profile,
-    setUser: setUserId,
+    setUser: (id) => {
+      if (!signedIn) setUserId(id);
+    },
+    signedIn,
     visibleReps,
     canViewCompanyMetrics: isManagement,
     canViewSalesDashboard: isManagement || role === "account_manager" || role === "assistant",

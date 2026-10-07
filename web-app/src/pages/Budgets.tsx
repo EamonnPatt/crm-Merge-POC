@@ -11,7 +11,7 @@ import { combinedPerformance, formatPct, monthlyBudgetFor, repPerformance, withM
 import { useMetricPreference } from "../lib/usePreference";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
-import { metricLabel, repActuals, type Metric } from "../data/mockData";
+import { metricLabel, type Metric, type RepActuals } from "../data/mockData";
 
 const FISCAL_YEARS = [FISCAL_YEAR, FISCAL_YEAR + 1];
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
@@ -371,7 +371,7 @@ type Distribution = "seasonal" | "even";
 type EntryMode = "annual" | "quarterly" | "monthly";
 
 /** Weights for spreading an amount: the rep's last-year mix (or the company's for a new rep), or flat. */
-function weightsFor(mode: Distribution, rep: string, metric: Metric): number[] {
+function weightsFor(mode: Distribution, rep: string, metric: Metric, repActuals: RepActuals[]): number[] {
   if (mode === "even") return MONTHS.map(() => 1);
   const repLy = repActuals.find((r) => r.rep === rep)?.[metric].monthlyLy;
   return repLy ?? MONTHS.map((_, m) => total(repActuals.map((r) => r[metric].monthlyLy[m])));
@@ -400,7 +400,7 @@ function CreateBudgetModal({
   onCreated: (fiscalYear: number, metric: Metric) => void;
 }) {
   const { profile } = useRole();
-  const { budgets, team, saveBudget } = useDemoData();
+  const { budgets, team, saveBudget, repActuals } = useDemoData();
   const [fiscalYear, setFiscalYear] = useState(initialYear);
   const [metric, setMetric] = useState<Metric>(initialMetric);
   const [rep, setRep] = useState(initialRep);
@@ -421,7 +421,7 @@ function CreateBudgetModal({
   const recompute = (next: { entry?: EntryMode; annual?: string; quarters?: string[]; mode?: Distribution; rep?: string; metric?: Metric }) => {
     const e = next.entry ?? entry;
     if (e === "monthly") return;
-    const weights = weightsFor(next.mode ?? mode, next.rep ?? rep, next.metric ?? metric);
+    const weights = weightsFor(next.mode ?? mode, next.rep ?? rep, next.metric ?? metric, repActuals);
     if (e === "annual") {
       const value = parseAmount(next.annual ?? annual);
       if (!value) return setMonthly(MONTHS.map(() => ""));
@@ -646,7 +646,7 @@ interface BudgetImportRow {
 
 function ImportBudgetsModal({ fiscalYear, metric, onClose }: { fiscalYear: number; metric: Metric; onClose: () => void }) {
   const { profile } = useRole();
-  const { team, importBudgets } = useDemoData();
+  const { team, importBudgets, repActuals } = useDemoData();
   const accountManagers = team.filter((m) => m.role === "account_manager").map((m) => m.name);
 
   const toRecord = (v: Record<string, string>): RowResult<BudgetImportRow> => {
@@ -668,7 +668,7 @@ function ImportBudgetsModal({ fiscalYear, metric, onClose }: { fiscalYear: numbe
     } else {
       const annual = parseAmount(v.annual);
       if (!annual) return { error: "No monthly amounts or annual total." };
-      const s = spread(annual, MONTHS.map((_, m) => m), weightsFor("seasonal", rep, rowMetric));
+      const s = spread(annual, MONTHS.map((_, m) => m), weightsFor("seasonal", rep, rowMetric, repActuals));
       monthly = MONTHS.map((_, m) => s.get(m)!);
     }
     return { record: { rep, fiscalYear: fy, metric: rowMetric, monthly } };
@@ -708,7 +708,7 @@ function ImportBudgetsModal({ fiscalYear, metric, onClose }: { fiscalYear: numbe
 /** Account Manager: read-only view of their own budget against actuals and last year. */
 function MyBudget() {
   const { profile } = useRole();
-  const { budgets, perfInputs } = useDemoData();
+  const { budgets, perfInputs, repActuals } = useDemoData();
   const [metric, setMetric] = useMetricPreference();
   const rep = profile.name;
   const budget = budgets.find((b) => b.rep === rep && b.fiscalYear === FISCAL_YEAR);

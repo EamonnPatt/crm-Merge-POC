@@ -5,7 +5,7 @@ import { Card, PageHeader, Badge, Button, Field, Modal, SegmentedControl, StatCa
 import { SpreadsheetImportModal, type RowResult } from "../components/SpreadsheetImportModal";
 import { useRole } from "../context/RoleContext";
 import { useDemoData, type OrderIssueInput } from "../context/DemoDataContext";
-import { issueTypes, salesOrders, type OrderIssue } from "../data/mockData";
+import { issueTypes, type OrderIssue } from "../data/mockData";
 import { relativeStamp } from "../lib/calendar";
 import { isWebUrl } from "../lib/url";
 import {
@@ -272,7 +272,7 @@ function EmbeddedSheet() {
 
 /** Customer → Account Manager, from the accounts list plus customers seen on orders and existing issues. */
 function useCustomerOwners() {
-  const { accounts, orderIssues } = useDemoData();
+  const { accounts, orderIssues, salesOrders } = useDemoData();
   const owners = new Map<string, string>();
   for (const o of salesOrders) owners.set(o.customer.toLowerCase(), o.rep);
   for (const i of orderIssues) owners.set(i.customer.toLowerCase(), i.accountManager);
@@ -294,7 +294,7 @@ const blankIssue = (assignee: string): OrderIssueInput => ({
 
 function IssueModal({ issue, onClose }: { issue?: OrderIssue; onClose: () => void }) {
   const { profile } = useRole();
-  const { team, accounts, saveOrderIssue } = useDemoData();
+  const { team, accounts, saveOrderIssue, salesOrders } = useDemoData();
   const owners = useCustomerOwners();
   const [form, setForm] = useState<OrderIssueInput>(issue ?? blankIssue(profile.role === "csr" ? profile.name : ""));
   const [error, setError] = useState<string | null>(null);

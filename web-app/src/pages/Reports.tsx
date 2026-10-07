@@ -11,7 +11,7 @@ import { todayIso } from "../lib/calendar";
 
 export default function Reports() {
   const { profile, visibleReps, canViewReports, canViewCompanyMetrics } = useRole();
-  const { accounts, deals, partners, orderIssues, perfInputs, logActivity } = useDemoData();
+  const { accounts, deals, partners, orderIssues, perfInputs, logActivity, salesOrders } = useDemoData();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -35,6 +35,7 @@ export default function Reports() {
       deals,
       partners,
       orderIssues,
+      salesOrders,
     });
   const fileName = (report: ReportDefinition, ext: string) => `${report.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${todayIso()}.${ext}`;
 

@@ -6,6 +6,7 @@ Project: `oqkmiadbknizlzelgusz` (https://oqkmiadbknizlzelgusz.supabase.co). The 
 |---|---|
 | `migrations/20261007000001_core_schema.sql` | Tables, enums, helper functions and Row Level Security. Already applied. |
 | `seed.sql` | The demo data (12 staff, 8 accounts, 243 sales orders incl. FY2025 for "vs LY", budgets, order issues, projects, audit log). Already loaded. |
+| `functions/invite-user/index.ts` | Edge Function behind **Settings → Add User** and **Send invite**. Already deployed. |
 | `generate-seed.mjs` | Rebuilds `seed.sql` from `web-app/src/data/mockData.ts`: `node supabase/generate-seed.mjs` |
 
 ## Tables
@@ -49,6 +50,36 @@ Before real users sign in, in the Supabase dashboard (Authentication):
 
 Add a new file under `migrations/` (timestamp prefix), apply it (MCP `apply_migration` or `supabase db push`), then regenerate `web-app/src/lib/database.types.ts`.
 
-## Status of the web app
+## How the web app uses it
 
-`web-app/src/lib/supabase.ts` is the connected, typed client. The screens still read and write the in-browser demo store (`DemoDataContext`); switching them to Supabase means adding sign-in, then replacing the context's data calls with queries against these tables (NEXT_STEPS §4, Phase 1).
+With `web-app/.env.local` present (see `web-app/.env.example`) the app asks for a sign-in. Without it, the app runs as the offline demo with its in-browser data and the "view as" switcher.
+
+- **Sign-in:** email + password, or an emailed link (`AuthContext.tsx`, `AuthScreens.tsx`). A login whose confirmed email is not in `app_users` gets a "not set up" page and sees no data.
+- **Role:** comes from `app_users`, not from the browser. The "view as" switcher is hidden when signed in.
+- **Reading and writing:** `DemoDataContext` keeps the same screens and functions. When signed in it loads the data you are allowed to see from Supabase (`data/remote.ts`), shows changes immediately, saves the difference to the database, then reloads the touched tables to pick up database-assigned ids. If the database refuses a change, the screen reverts and a banner says why.
+- **Sales figures:** the dashboards' actual and last-year numbers are now calculated from `sales_orders` (`lib/actuals.ts`) instead of generated dummy figures.
+- **Not stored:** ASI / Syncore API keys typed into Settings stay in the browser session only.
+
+## Creating employee accounts
+
+Management and Super User add people in **Settings → Team Access → Add User**. The `invite-user` Edge Function checks the caller's role, adds the person to `app_users` (and `assistant_supports`), and emails them an invite. They click the link, choose a password, and land in the app with their role. Only a Super User can create another Super User. People already on the list with status Invited (for example the seeded ones) have a **Send invite** link instead.
+
+Things to know:
+- The function needs the `service_role` key, which Supabase injects into Edge Functions automatically. It never reaches the browser.
+- Invite emails go through Supabase's built-in mailer until you add your own SMTP server (Authentication, SMTP Settings). The built-in one only sends a few emails per hour and is meant for testing.
+- The invite link only returns to the app if its address is in Authentication, URL Configuration (Site URL / Redirect URLs).
+- Anyone can also use "Forgot your password?" on the login page to get a link to choose a new one.
+
+## First login
+
+1. In `app_users`, set the email of the person who will be Super User / Management to their real work email (the seeded `@add-impact.com` addresses are placeholders):
+   `update public.app_users set email = 'you@company.com' where id = 'U-01';`
+2. Supabase dashboard, Authentication, Users, **Add user**: same email, set a password, tick auto-confirm. The link to `app_users` happens automatically.
+3. Authentication, URL Configuration: set the Site URL to the deployed address (and add `http://localhost:5173` for local work), so emailed sign-in links come back to the app.
+4. Authentication, Sign In / Providers: turn off "Allow new users to sign up".
+
+## Known limits
+
+- The app's "today" is still pinned to 2026-09-21 (`AS_OF` in `lib/calendar.ts`) so the seeded orders line up. Point it at the real clock once real data is loading.
+- All visible orders for last year and this year are loaded into the browser and totalled there. Fine for a demo-sized dataset; move the totals into SQL (`rep_monthly_performance`) before loading a full order history.
+- Two people saving at the exact same moment: the later save wins. There is no live sync between open browsers; data refreshes when the tab regains focus.

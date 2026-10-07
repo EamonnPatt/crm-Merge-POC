@@ -19,13 +19,15 @@ export type Metric = "gp" | "sales";
 
 export const metricLabel: Record<Metric, string> = { gp: "GP$", sales: "Sales$" };
 
-export const dataSources: {
+export interface DataSourceInfo {
   name: Source;
   status: "connected" | "attention";
   lastSync: string;
   recordsSynced: number;
   method: string;
-}[] = [
+}
+
+export const dataSources: DataSourceInfo[] = [
   {
     name: "ASI SmartBooks",
     status: "attention",

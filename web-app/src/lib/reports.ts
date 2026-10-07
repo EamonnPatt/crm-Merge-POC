@@ -1,10 +1,10 @@
 import {
   pipelineStages,
-  salesOrders,
   type Customer,
   type OrderIssue,
   type PipelineDeal,
   type ReferralPartner,
+  type SalesOrder,
 } from "../data/mockData";
 import { AS_OF_LABEL, CURRENT_MONTH, FISCAL_YEAR, MONTHS } from "./calendar";
 import { combinedPerformance, orderTotals, ordersInPeriod, periods, repPerformance, withMetrics, type PerfInputs } from "./performance";
@@ -25,6 +25,7 @@ export interface ReportContext {
   deals: PipelineDeal[];
   partners: ReferralPartner[];
   orderIssues: OrderIssue[];
+  salesOrders: SalesOrder[];
 }
 
 const round = (n: number, places = 1) => Math.round(n * 10 ** places) / 10 ** places;
@@ -41,7 +42,7 @@ function attainmentRows(reps: string[], ctx: ReportContext, period: "monthly" | 
 
 const attainmentColumns = ["Account Manager", "Budget (full period)", "Budget to date", "Actual", "vs Budget to date", "% of budget", "LY same period", "vs LY %", "Days ahead / behind"];
 
-function salesSummaryRows(reps: string[]) {
+function salesSummaryRows(reps: string[], salesOrders: SalesOrder[]) {
   return reps.flatMap((rep) =>
     (["monthly", "annual"] as const).map((period) => {
       const t = orderTotals(ordersInPeriod(salesOrders.filter((o) => o.rep === rep), period));
@@ -69,7 +70,7 @@ export function buildReport(id: string, ctx: ReportContext): ReportTable {
         title: "Sales Summary",
         subtitle: `${asOf} · Total Sale, Total Cost, GP and Margin %`,
         columns: ["Account Manager", "Period", "Orders", "Total Sale", "Total Cost", "Gross Profit", "Margin %"],
-        rows: salesSummaryRows(ctx.reps),
+        rows: salesSummaryRows(ctx.reps, ctx.salesOrders),
       };
     case "RPT-2":
     case "RPT-10": {
@@ -121,7 +122,7 @@ export function buildReport(id: string, ctx: ReportContext): ReportTable {
         columns: ["Month", "Source", "Orders", "Total Sale", "Total Cost", "Gross Profit", "Margin %"],
         rows: MONTHS.slice(0, CURRENT_MONTH + 1).flatMap((month, m) =>
           (["ASI SmartBooks", "Facilis Syncore"] as const).map((source) => {
-            const t = orderTotals(salesOrders.filter((o) => o.source === source && Number(o.date.slice(5, 7)) - 1 === m));
+            const t = orderTotals(ctx.salesOrders.filter((o) => o.source === source && Number(o.date.slice(5, 7)) - 1 === m));
             return [month, source, t.orders, t.sales, t.cost, t.gp, pct(t.margin)];
           })
         ),

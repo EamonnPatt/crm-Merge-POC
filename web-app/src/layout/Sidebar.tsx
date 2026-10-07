@@ -9,13 +9,13 @@ import {
   AlertTriangle,
   FileBarChart,
   Settings as SettingsIcon,
-  Building2,
   ClipboardList,
   History,
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRole } from "../context/RoleContext";
+import { Logo } from "../components/Logo";
 
 interface NavItem {
   to: string;
@@ -85,14 +85,8 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col bg-slate-900 text-slate-300">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-          <Building2 size={18} />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white leading-tight">Add-Impact CRM</p>
-          <p className="text-xs text-slate-400 leading-tight">Sales Operations</p>
-        </div>
+      <div className="px-5 py-5">
+        <Logo dark subtitle="Sales Operations" />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">

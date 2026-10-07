@@ -1,4 +1,4 @@
-import { budgetValues, grossProfit, repActuals, type Budget, type Metric, type SalesOrder } from "../data/mockData";
+import { budgetValues, grossProfit, type Budget, type Metric, type RepActuals, type SalesOrder } from "../data/mockData";
 import { AS_OF_ISO, CURRENT_MONTH, FISCAL_YEAR, MONTHS, type BusinessCalendar } from "./calendar";
 
 export type PeriodType = "daily" | "monthly" | "quarterly" | "annual";
@@ -15,6 +15,8 @@ export interface PerfInputs {
   budgets: Budget[];
   metric: Metric;
   calendar: BusinessCalendar;
+  /** Actual and last-year figures per Account Manager (from the sales orders). */
+  actuals: RepActuals[];
 }
 
 /** Raw figures (GP$ or Sales$) for one or more Account Managers over a period, as of the demo date. */
@@ -53,9 +55,9 @@ export function monthlyBudgetFor(budgets: Budget[], rep: string, metric: Metric,
   return budgetValues(budgets.find((b) => b.rep === rep && b.fiscalYear === fiscalYear), metric) ?? Array(12).fill(0);
 }
 
-function actualsFor(rep: string, metric: Metric) {
+function actualsFor(actuals: RepActuals[], rep: string, metric: Metric) {
   return (
-    repActuals.find((r) => r.rep === rep)?.[metric] ?? {
+    actuals.find((r) => r.rep === rep)?.[metric] ?? {
       monthlyActual: MONTHS.map((_, m) => (m > CURRENT_MONTH ? null : 0)),
       monthlyLy: Array(12).fill(0),
       todayActual: 0,
@@ -83,9 +85,9 @@ function periodDays(period: PeriodType, calendar: BusinessCalendar): { elapsedDa
   };
 }
 
-export function repPerformance(rep: string, period: PeriodType, { budgets, metric, calendar }: PerfInputs): Performance {
+export function repPerformance(rep: string, period: PeriodType, { budgets, metric, calendar, actuals }: PerfInputs): Performance {
   const budget = monthlyBudgetFor(budgets, rep, metric);
-  const { monthlyActual, monthlyLy, todayActual, todayLy } = actualsFor(rep, metric);
+  const { monthlyActual, monthlyLy, todayActual, todayLy } = actualsFor(actuals, rep, metric);
   const monthDays = calendar.monthly[CURRENT_MONTH];
   const mtdShare = monthDays === 0 ? 1 : calendar.elapsedThisMonth / monthDays;
   const dailyBudgetRate = monthDays === 0 ? 0 : budget[CURRENT_MONTH] / monthDays;
@@ -162,9 +164,9 @@ export function formatPct(pct: number, signed = false): string {
 }
 
 /** Month-by-month actual vs budget vs LY for the fiscal year, summed across the given reps. */
-export function monthlySeries(reps: string[], { budgets, metric }: PerfInputs) {
+export function monthlySeries(reps: string[], { budgets, metric, actuals: allActuals }: PerfInputs) {
   return MONTHS.map((month, m) => {
-    const actuals = reps.map((rep) => actualsFor(rep, metric));
+    const actuals = reps.map((rep) => actualsFor(allActuals, rep, metric));
     return {
       month: m === CURRENT_MONTH ? `${month} (MTD)` : month,
       actual: m > CURRENT_MONTH ? null : sum(actuals.map((a) => a.monthlyActual[m] ?? 0)),

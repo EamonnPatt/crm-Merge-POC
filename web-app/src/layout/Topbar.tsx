@@ -1,27 +1,44 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Search, ChevronDown, Check, RotateCcw, AlertTriangle, TrendingDown, Wallet, Share2, Plug } from "lucide-react";
+import { Bell, Search, ChevronDown, Check, RotateCcw, AlertTriangle, TrendingDown, Wallet, Share2, Plug, LogOut, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
+import { useAuth } from "../context/AuthContext";
 import { roleLabel, roleOrder } from "../lib/roles";
-import { dataSources } from "../data/mockData";
 import { FISCAL_YEAR, relativeStamp } from "../lib/calendar";
 import { formatDays, paceStatus, repPerformance, withMetrics } from "../lib/performance";
 import { lastTrackerUpdate } from "../lib/orderIssues";
 
 export default function Topbar({ title }: { title: string }) {
-  const { profile, setUser } = useRole();
-  const { team, resetDemoData } = useDemoData();
+  const { profile, setUser, signedIn } = useRole();
+  const { team, resetDemoData, sync } = useDemoData();
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   return (
+    <>
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
       <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
       <div className="flex items-center gap-4">
         <GlobalSearch />
         <Notifications />
 
+        {signedIn ? (
+          <div className="flex items-center gap-3">
+            {sync.saving && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <Loader2 size={12} className="animate-spin" /> Saving…
+              </span>
+            )}
+            <span className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-slate-700">
+              {profile.name} · {profile.label}
+            </span>
+            <button onClick={() => void signOut()} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100">
+              <LogOut size={14} /> Sign out
+            </button>
+          </div>
+        ) : (
         <div className="relative">
           <button
             data-testid="role-switcher-trigger"
@@ -82,8 +99,16 @@ export default function Topbar({ title }: { title: string }) {
             </>
           )}
         </div>
+        )}
       </div>
     </header>
+    {sync.error && (
+      <div role="alert" className="flex items-center justify-between gap-3 border-b border-rose-200 bg-rose-50 px-6 py-2 text-sm text-rose-800">
+        <span>Your change was not saved and has been reverted: {sync.error}</span>
+        <button onClick={sync.dismissError} className="text-xs font-medium underline">Dismiss</button>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -184,7 +209,7 @@ interface Alert {
 /** In-app alerts derived from live demo data, scoped to the viewer and filtered by Settings → Notifications. */
 function useAlerts(): Alert[] {
   const { profile, visibleReps, canViewCompanyMetrics, canViewAllOrderIssues } = useRole();
-  const { orderIssues, budgets, team, settings, perfInputs } = useDemoData();
+  const { orderIssues, budgets, team, settings, perfInputs, dataSources } = useDemoData();
   const on = (key: string) => settings.notifications[key] !== false;
   const alerts: Alert[] = [];
   const isManagement = canViewCompanyMetrics;

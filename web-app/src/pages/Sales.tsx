@@ -38,7 +38,7 @@ import {
 import { useMetricPreference } from "../lib/usePreference";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
-import { salesOrders, grossProfit, marginPct, metricLabel, type Metric, type SalesOrder } from "../data/mockData";
+import { grossProfit, marginPct, metricLabel, type Metric, type SalesOrder } from "../data/mockData";
 
 const statusTone: Record<SalesOrder["status"], "emerald" | "amber" | "rose"> = {
   paid: "emerald",
@@ -51,7 +51,7 @@ const metricOf = (o: SalesOrder, metric: Metric) => (metric === "gp" ? grossProf
 
 export default function Sales() {
   const { profile, visibleReps, canViewSalesDashboard, canViewCompanyMetrics, canShareDashboard } = useRole();
-  const { shares, team, perfInputs } = useDemoData();
+  const { shares, team, perfInputs, salesOrders } = useDemoData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [period, setPeriod] = useState<PeriodType>("monthly");
   const [metric, setMetric] = useMetricPreference();

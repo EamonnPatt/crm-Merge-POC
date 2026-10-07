@@ -121,9 +121,9 @@ Starts once the Section 2 decisions are made and the Section 1 access is granted
 
 ### Phase 1: Foundation (~2–3 weeks)
 
-- [ ] **Stack:** Python/FastAPI backend, PostgreSQL, a scheduled background worker, hosted on AWS. Keep internal-only access via SSO plus an IP allowlist or VPN
-- [ ] **Real login** (Microsoft 365 or Google SSO); roles stored in the database
-- [ ] **Enforce permissions on the server.** In the demo, role checks happen only in the browser. The real API must filter by role, so company-wide numbers are never sent to an Account Manager's, Assistant's or CSR's browser
+- [ ] **Stack:** Python/FastAPI backend, PostgreSQL, a scheduled background worker, hosted on AWS. Keep internal-only access via SSO plus an IP allowlist or VPN. _Update 2026-10-07: the database, login and access rules are now on Supabase (see `supabase/README.md`); the scheduled loaders still need a home (Edge Functions or a small worker)._
+- [x] **Login with roles stored in the database** (email + password / emailed link). _Still open: Microsoft 365 or Google SSO._
+- [x] **Enforce permissions on the server** (Postgres Row Level Security). _Was:_ In the demo, role checks happen only in the browser. The real API must filter by role, so company-wide numbers are never sent to an Account Manager's, Assistant's or CSR's browser
 - [ ] **Database tables** (a sketch; to be refined in Phase 0):
   - `ingest_batch`: a record of each load
   - raw copies of each source's records, never edited
@@ -136,7 +136,7 @@ Starts once the Section 2 decisions are made and the Section 1 access is granted
 - [ ] **SmartBooks importer:** manual upload of the agreed report first (reusing the demo's Import button), with the same file reader Phase 2 will use
 - [ ] **Mapping admin screen:** link each source's rep and customer names to app users and accounts; flag anything unmatched
 - [ ] **Reconciliation page:** our monthly totals per rep vs a report the client already trusts. Go-live requires a match
-- [ ] Replace the demo data store (`DemoDataContext`) with real API calls, keeping the same screens
+- [x] Replace the demo data store (`DemoDataContext`) with real calls, keeping the same screens (done against Supabase; the offline demo still works without it)
 
 ### Phase 2: Automation (~1–2 weeks, depends on ASI)
 
