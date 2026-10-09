@@ -13,8 +13,222 @@
   --color-brand-900: #312e81;
 }
 
+/* Values the charts and logo read directly (SVG can't use Tailwind classes). Classic = the original look. */
+:root {
+  --page-bg: #f4f5f9;
+  --chart-primary: #4f46e5;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-budget: #cbd5e1;
+  --chart-budget-line: #64748b;
+  --chart-ly: #fbbf24;
+  --chart-ly-line: #f59e0b;
+  --logo-from: #6366f1;
+  --logo-to: #3730a3;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f4f5f9;
+  background-color: var(--page-bg);
+}
+
+/* ------------------------------------------------------------------ *
+ * Themes. Each block re-points the brand and slate scales (so every
+ * existing class follows) and sets the depth variables used by the
+ * shared rules further down. Classic has no overrides at all.
+ * ------------------------------------------------------------------ */
+
+/* Aurora — deep ink + teal, cool-tinted neutrals, amber accent. */
+:root[data-theme="aurora"] {
+  --color-brand-50: #effcf9;
+  --color-brand-100: #cdf6ee;
+  --color-brand-200: #9aebdd;
+  --color-brand-300: #5fd8c8;
+  --color-brand-400: #2dbfb0;
+  --color-brand-500: #14a398;
+  --color-brand-600: #0b857f;
+  --color-brand-700: #0b6a67;
+  --color-brand-800: #0d5453;
+  --color-brand-900: #0f4444;
+
+  --color-slate-50: #f3f7f9;
+  --color-slate-100: #e8eff3;
+  --color-slate-200: #d3dfe6;
+  --color-slate-300: #b4c6d1;
+  --color-slate-400: #8aa2b1;
+  --color-slate-500: #62798a;
+  --color-slate-600: #475e6f;
+  --color-slate-700: #34495a;
+  --color-slate-800: #1f3342;
+  --color-slate-900: #0e2230;
+  --color-slate-950: #08161f;
+
+  --page-bg: #eaf1f4;
+  --page-glow: rgb(45 191 176 / 0.14);
+  --font-display: Manrope, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sidebar-bg: linear-gradient(175deg, #0a1c29 0%, #0c2c3a 55%, #0b3a43 100%);
+  --accent-from: #14a398;
+  --accent-to: #0b857f;
+  --accent-hover-from: #0b857f;
+  --accent-hover-to: #0b6a67;
+  --accent-glow: rgb(20 163 152 / 0.65);
+  --avatar-from: #2dbfb0;
+  --stat-strip: linear-gradient(90deg, #14a398, #5fd8c8 60%, #f5b83d);
+  --card-border: rgb(211 223 230 / 0.9);
+  --card-shadow: 0 1px 2px rgb(14 34 48 / 0.04), 0 8px 24px -12px rgb(14 34 48 / 0.12);
+
+  --chart-primary: #0b857f;
+  --chart-grid: #d3dfe6;
+  --chart-axis: #62798a;
+  --chart-budget: #b4c6d1;
+  --chart-budget-line: #475e6f;
+  --chart-ly: #f5b83d;
+  --chart-ly-line: #e8a317;
+  --logo-from: #2dbfb0;
+  --logo-to: #0d5453;
+}
+
+/* Harbor — light sidebar, steel blue, coral accent. The only theme with a light navigation rail. */
+:root[data-theme="harbor"] {
+  --color-brand-50: #f0f6fb;
+  --color-brand-100: #dcebf6;
+  --color-brand-200: #bcd8ee;
+  --color-brand-300: #8dbbdf;
+  --color-brand-400: #5a97cc;
+  --color-brand-500: #3678b5;
+  --color-brand-600: #26609a;
+  --color-brand-700: #1f4d7d;
+  --color-brand-800: #1c4066;
+  --color-brand-900: #19344f;
+
+  --page-bg: #eff3f8;
+  --page-glow: rgb(54 120 181 / 0.11);
+  --font-display: "Plus Jakarta Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sidebar-bg: #ffffff;
+  --nav-hover-bg: rgb(15 23 42 / 0.05);
+  --accent-from: #3678b5;
+  --accent-to: #26609a;
+  --accent-hover-from: #26609a;
+  --accent-hover-to: #1f4d7d;
+  --accent-glow: rgb(38 96 154 / 0.5);
+  --avatar-from: #5a97cc;
+  --stat-strip: linear-gradient(90deg, #26609a, #5a97cc 60%, #f4845f);
+  --card-border: rgb(220 228 238 / 0.95);
+  --card-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(30 64 102 / 0.16);
+
+  --chart-primary: #26609a;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-budget: #c5d3e3;
+  --chart-budget-line: #475569;
+  --chart-ly: #f4845f;
+  --chart-ly-line: #e0613a;
+  --logo-from: #5a97cc;
+  --logo-to: #1c4066;
+}
+
+/* Shared depth for every non-Classic theme, driven by the variables above. */
+:root:not([data-theme="classic"]) body {
+  background-image: radial-gradient(900px 420px at 85% -8%, var(--page-glow), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Display type for headings, titles and figures */
+:root:not([data-theme="classic"]) h1,
+:root:not([data-theme="classic"]) h2,
+:root:not([data-theme="classic"]) h3,
+:root:not([data-theme="classic"]) .ui-stat-value {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+/* Sidebar: gradient surface with a soft glow on the active item */
+:root:not([data-theme="classic"]) aside {
+  background: var(--sidebar-bg);
+  border-right: 1px solid rgb(255 255 255 / 0.06);
+}
+:root:not([data-theme="classic"]) aside .hover\:bg-slate-800:hover {
+  background-color: var(--nav-hover-bg, rgb(255 255 255 / 0.07));
+}
+:root:not([data-theme="classic"]) aside a.bg-brand-600 {
+  background-image: linear-gradient(100deg, var(--accent-from), var(--accent-to));
+  box-shadow: 0 6px 18px -6px var(--accent-glow), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+:root:not([data-theme="classic"]) aside .border-slate-800 {
+  border-color: rgb(255 255 255 / 0.08);
+}
+:root:not([data-theme="classic"]) aside .bg-slate-700 {
+  background-image: linear-gradient(135deg, var(--avatar-from), var(--accent-to));
+}
+
+/* Top bar: frosted. backdrop-filter makes it its own stacking layer, so it must sit above the page content
+   (below modals, z-40) or its dropdowns (theme, alerts, role switcher, search) render underneath the cards. */
+:root:not([data-theme="classic"]) header {
+  position: relative;
+  z-index: 30;
+  background-color: rgb(255 255 255 / 0.78);
+  backdrop-filter: blur(10px);
+}
+
+/* Cards: rounder, with a faint tinted lift */
+:root:not([data-theme="classic"]) .ui-card {
+  border-radius: 1rem;
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+:root:not([data-theme="classic"]) .ui-stat {
+  position: relative;
+  overflow: hidden;
+}
+:root:not([data-theme="classic"]) .ui-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--stat-strip);
+}
+
+/* Primary buttons and segmented selections pick up the gradient too */
+:root:not([data-theme="classic"]) button.bg-brand-600:not([role="switch"]) {
+  background-image: linear-gradient(100deg, var(--accent-from), var(--accent-to));
+  box-shadow: 0 4px 12px -4px var(--accent-glow);
+}
+:root:not([data-theme="classic"]) button.bg-brand-600:not([role="switch"]):hover {
+  background-image: linear-gradient(100deg, var(--accent-hover-from), var(--accent-hover-to));
+}
+
+/* Modals */
+:root:not([data-theme="classic"]) [role="dialog"] {
+  border-radius: 1rem;
+}
+
+/* Harbor's light sidebar: the shared rail styling assumes a dark surface, so flip its text and states. */
+:root[data-theme="harbor"] aside {
+  border-right-color: #dce4ee;
+  box-shadow: 1px 0 0 rgb(15 23 42 / 0.02), 8px 0 24px -16px rgb(30 64 102 / 0.18);
+}
+:root[data-theme="harbor"] aside .text-white {
+  color: var(--color-slate-900);
+}
+:root[data-theme="harbor"] aside .text-brand-300 {
+  color: var(--color-brand-600);
+}
+:root[data-theme="harbor"] aside .text-slate-300 {
+  color: var(--color-slate-600);
+}
+:root[data-theme="harbor"] aside .hover\:text-white:hover {
+  color: var(--color-slate-900);
+}
+:root[data-theme="harbor"] aside .border-slate-800 {
+  border-color: var(--color-slate-200);
+}
+:root[data-theme="harbor"] aside a.bg-brand-600 {
+  background-image: none;
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-700);
+  box-shadow: inset 3px 0 0 var(--color-brand-600);
+}
+:root[data-theme="harbor"] aside .bg-slate-700 {
+  color: #fff;
 }

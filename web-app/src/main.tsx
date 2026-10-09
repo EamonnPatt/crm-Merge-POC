@@ -7,6 +7,9 @@ import { AuthProvider } from './context/AuthContext.tsx'
 import { DemoDataProvider } from './context/DemoDataContext.tsx'
 import { RoleProvider } from './context/RoleContext.tsx'
 import { AuthGate } from './components/AuthScreens.tsx'
+import { initTheme } from './lib/theme.ts'
+
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

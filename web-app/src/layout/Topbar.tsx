@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Search, ChevronDown, Check, RotateCcw, AlertTriangle, TrendingDown, Wallet, Share2, Plug, LogOut, Loader2 } from "lucide-react";
+import { Bell, Search, Palette, ChevronDown, Check, RotateCcw, AlertTriangle, TrendingDown, Wallet, Share2, Plug, LogOut, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useDemoData } from "../context/DemoDataContext";
@@ -9,6 +9,7 @@ import { roleLabel, roleOrder } from "../lib/roles";
 import { FISCAL_YEAR, relativeStamp } from "../lib/calendar";
 import { formatDays, paceStatus, repPerformance, withMetrics } from "../lib/performance";
 import { lastTrackerUpdate } from "../lib/orderIssues";
+import { THEMES, getTheme, setTheme, type ThemeId } from "../lib/theme";
 
 export default function Topbar({ title }: { title: string }) {
   const { profile, setUser, signedIn } = useRole();
@@ -22,6 +23,7 @@ export default function Topbar({ title }: { title: string }) {
       <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
       <div className="flex items-center gap-4">
         <GlobalSearch />
+        <ThemeSwitcher />
         <Notifications />
 
         {signedIn ? (
@@ -331,6 +333,49 @@ function Notifications() {
                 </button>
               ))
             )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Preview control for comparing UI themes; the choice is remembered per browser. */
+function ThemeSwitcher() {
+  const [theme, setCurrent] = useState<ThemeId>(getTheme);
+  const [open, setOpen] = useState(false);
+
+  const choose = (id: ThemeId) => {
+    setTheme(id);
+    setCurrent(id);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+        aria-label="Change theme"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Palette size={18} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+            <p className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Theme</p>
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => choose(t.id)}
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              >
+                {t.label}
+                {t.id === theme && <Check size={15} className="text-brand-600" />}
+              </button>
+            ))}
           </div>
         </>
       )}

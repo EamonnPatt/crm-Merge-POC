@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <div className={`ui-card rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -48,12 +48,12 @@ export function StatCard({
       ? "text-rose-600 bg-rose-50"
       : "text-slate-500 bg-slate-100";
   return (
-    <Card className="p-5">
+    <Card className="ui-stat p-5">
       <div className="flex items-start justify-between">
         <p className="text-sm font-medium text-slate-500">{label}</p>
         {icon && <div className="text-slate-400">{icon}</div>}
       </div>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
+      <p className="ui-stat-value mt-2 text-2xl font-semibold text-slate-900">{value}</p>
       {delta && (
         <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}>
           {delta}

@@ -161,10 +161,10 @@ export function PerformanceTrendChart({
       </div>
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={data} margin={{ left: 4, right: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} interval={0} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--chart-axis)" }} axisLine={false} tickLine={false} interval={0} />
           <YAxis
-            tick={{ fontSize: 12, fill: "#64748b" }}
+            tick={{ fontSize: 12, fill: "var(--chart-axis)" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `$${Math.round(Number(v) / 1000)}k`}
@@ -172,9 +172,9 @@ export function PerformanceTrendChart({
           />
           <Tooltip formatter={(value) => (value == null ? "—" : currency(Number(value)))} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar dataKey="actual" name={`Actual ${metricLabel[metric]}`} fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={22} />
-          <Line dataKey="budget" name="Budget" stroke="#64748b" strokeWidth={2} strokeDasharray="5 4" dot={false} />
-          <Line dataKey="ly" name="Last Year" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2.5 }} />
+          <Bar dataKey="actual" name={`Actual ${metricLabel[metric]}`} fill="var(--chart-primary)" radius={[4, 4, 0, 0]} barSize={22} />
+          <Line dataKey="budget" name="Budget" stroke="var(--chart-budget-line)" strokeWidth={2} strokeDasharray="5 4" dot={false} />
+          <Line dataKey="ly" name="Last Year" stroke="var(--chart-ly-line)" strokeWidth={2} dot={{ r: 2.5 }} />
         </ComposedChart>
       </ResponsiveContainer>
     </Card>

@@ -7,8 +7,8 @@ export function LogoMark({ size = 32, className = "" }: { size?: number; classNa
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" role="img" aria-label="Add-Impact" className={className}>
       <defs>
         <linearGradient id={gradient} x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6366f1" />
-          <stop offset="1" stopColor="#3730a3" />
+          <stop style={{ stopColor: "var(--logo-from)" }} />
+          <stop offset="1" style={{ stopColor: "var(--logo-to)" }} />
         </linearGradient>
       </defs>
       <rect width="40" height="40" rx="10" fill={`url(#${gradient})`} />

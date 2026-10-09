@@ -271,14 +271,14 @@ export default function Sales() {
           <div className="px-5 pt-4">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={repRows} margin={{ left: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="rep" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(Number(v) / 1000)}k`} width={48} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
+                <XAxis dataKey="rep" tick={{ fontSize: 12, fill: "var(--chart-axis)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "var(--chart-axis)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(Number(v) / 1000)}k`} width={48} />
                 <Tooltip formatter={(value) => currency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="actual" name={`Actual ${label}`} fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="budgetToDate" name="Budget (to date)" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="ly" name="Last Year (same period)" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actual" name={`Actual ${label}`} fill="var(--chart-primary)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="budgetToDate" name="Budget (to date)" fill="var(--chart-budget)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="ly" name="Last Year (same period)" fill="var(--chart-ly)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
